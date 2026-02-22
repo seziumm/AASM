@@ -1,0 +1,6 @@
+bin/
+build/
+.cache/
+
+flake.lock
+compile_commands.json

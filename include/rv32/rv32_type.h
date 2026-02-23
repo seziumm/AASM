@@ -1,7 +1,10 @@
 #ifndef _RV32_TYPE_H
 #define _RV32_TYPE_H
 
+#include <common.h>
+#include <stdatomic.h>
 #include <stddef.h>
+#include <string.h>
 #include <type.h>
 
 enum instr_t
@@ -22,20 +25,6 @@ struct instr
   u32 code;
 };
 
-
-u32 instr_params_of(enum instr_t type)
-{
-  switch (type) 
-  {
-    case R_TYPE: return 3;
-    case I_TYPE: return 3;
-    case S_TYPE: return 3;
-    case B_TYPE: return 3;
-    case U_TYPE: return 2;
-    case J_TYPE: return 2;
-  }
-
-}
 
 
 // -----------------------------
@@ -103,7 +92,6 @@ u32 instr_params_of(enum instr_t type)
     (struct instr){ .label = (label_str), .type = J_TYPE, \
                     .code = INSTR_J_ENCODE(opcode_val, 0, imm_val) }
 
-
 static const struct instr rv32ii[] = 
 {
     // R-Type
@@ -158,5 +146,75 @@ static const struct instr rv32ii[] =
     INSTR_J_INIT_NO_REG("JAL", 0x6F, 0)
 };
 
+
+
+
+static i32 is_register(char *p)
+{
+  /* ---------- ABI ---------- */
+  static char *abi[] = 
+  {
+    "ZERO","RA","SP","GP","TP",
+    "T0","T1","T2","T3","T4","T5","T6",
+    "S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11",
+    "A0","A1","A2","A3","A4","A5","A6","A7"
+  };
+
+  for (u32 i = 0; i < sizeof(abi)/sizeof(*abi); i++)
+  {
+    if (strcmp(p, abi[i]) == 0) return 1;
+  }
+
+  /* ---------- X0..X31 ---------- */
+  static char *reg[] = 
+  {
+    "X0","X1","X2","X3","X4","X5","X6","X7","X8","X9",
+    "X10","X11","X12","X13","X14","X15","X16","X17","X18","X19",
+    "X20","X21","X22","X23","X24","X25","X26","X27","X28","X29",
+    "X30","X31"
+  };
+
+  for (u32 i = 0; i < sizeof(reg)/sizeof(*reg); i++)
+  {
+    if (strcmp(p, reg[i]) == 0) return 1;
+  }
+
+  return 0;
+}
+
+static i32 is_instr(char *p)
+{
+
+  for (u32 i = 0; i < sizeof(rv32ii) / sizeof(*rv32ii); i++)
+  {
+    if (strcmp(p, rv32ii[i].label) == 0) return 1;
+  }
+
+  return 0;
+}
+
+static const struct instr *get_instr(char *p)
+{
+  for (u32 i = 0; i < sizeof(rv32ii) / sizeof(*rv32ii); i++)
+  {
+    if (strcmp(p, rv32ii[i].label) == 0) return &rv32ii[i];
+  }
+
+  return NULL;
+
+}
+
+static enum instr_t get_type(char *instr)
+{
+  struct instr *ins = get_instr(instr);
+
+  if(NULL == ins)
+  {
+    die(1, "BAD INSTR TYPE WHEN CALLILNG GET_TYPE");
+  }
+
+  return ins->type;
+
+}
 
 #endif

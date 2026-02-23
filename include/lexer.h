@@ -43,6 +43,7 @@ struct lexer
 
 struct lexer *lexer_compile(char *c);
 struct lexer *lexer_init(void);
+struct token_data *lexer_peek(struct lexer *l, u32 pos);
 void lexer_push_token_data(struct lexer *l, struct token_data *td);
 void lexer_push_token_value(struct lexer *l, enum token t, char *value);
 void lexer_expand(struct lexer *l);

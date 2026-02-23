@@ -1,4 +1,4 @@
-#include "rv32/rv32_type.h"
+#include <rv32/rv32_type.h>
 #include <string.h>
 #include <common.h>
 #include <ctype.h>
@@ -44,49 +44,7 @@ char *token_type_print(enum token t)
 /* ============= */
 
 
-i32 is_register(char *p)
-{
-  /* ---------- ABI ---------- */
-  static char *abi[] = 
-  {
-    "ZERO","RA","SP","GP","TP",
-    "T0","T1","T2","T3","T4","T5","T6",
-    "S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11",
-    "A0","A1","A2","A3","A4","A5","A6","A7"
-  };
 
-  for (u32 i = 0; i < sizeof(abi)/sizeof(*abi); i++)
-  {
-    if (strcmp(p, abi[i]) == 0) return 1;
-  }
-
-  /* ---------- X0..X31 ---------- */
-  static char *reg[] = 
-  {
-    "X0","X1","X2","X3","X4","X5","X6","X7","X8","X9",
-    "X10","X11","X12","X13","X14","X15","X16","X17","X18","X19",
-    "X20","X21","X22","X23","X24","X25","X26","X27","X28","X29",
-    "X30","X31"
-  };
-
-  for (u32 i = 0; i < sizeof(reg)/sizeof(*reg); i++)
-  {
-    if (strcmp(p, reg[i]) == 0) return 1;
-  }
-
-  return 0;
-}
-
-i32 is_instr(char *p)
-{
-
-  for (u32 i = 0; i < sizeof(rv32ii) / sizeof(*rv32ii); i++)
-  {
-    if (strcmp(p, rv32ii[i].label) == 0) return 1;
-  }
-
-  return 0;
-}
 
 u32 lexer_count_while(char *c, i32 (*pred)(i32)) 
 {
@@ -182,7 +140,10 @@ struct lexer *lexer_compile(char *c)
           }
           else 
           {
-            lexer_die(l, 1, "NO WORD FOUND %c\n", *c);
+            // TODO ADD A METHOD THAT CHECKS THAT THIS TAG IS VALID
+            lexer_push_token_value(l, token_tag, new_c);
+            // IF NOT DO THIS
+            // lexer_die(l, 1, "NO WORD FOUND %c\n", *c);
           }
 
           c += sz;
@@ -259,6 +220,13 @@ void lexer_push_token_data(struct lexer *l, struct token_data *td)
 
   l->tokens[l->size] = td;
   l->size++;
+}
+
+struct token_data *lexer_peek(struct lexer *l, u32 pos)
+{
+  if(pos >= l->size) return NULL;
+
+  return l->tokens[pos];
 }
 
 

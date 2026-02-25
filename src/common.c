@@ -28,7 +28,7 @@ char *freadbuf(const char *path)
     die(1, "A fseek() error occurred");
   }
 
-  size_t size = ftell(f);
+  i32 size = ftell(f);
   if (size < 0) 
   {
     fclose(f);
@@ -58,3 +58,7 @@ char *freadbuf(const char *path)
 
   return buffer;
 }
+
+
+
+

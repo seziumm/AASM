@@ -23,7 +23,7 @@ enum token
   token_instr,   // 'ADD ... '
   token_register,// 'X1'
   token_section, // '.section .data' or '.org 0x10000'
-  token_tag      // '&loop' => 'loop:'
+  token_label    // '&loop' => 'loop:'
 };
 
 struct token_data
@@ -42,19 +42,19 @@ struct lexer
 
 
 struct lexer *lexer_compile(char *c);
-struct lexer *lexer_init(void);
+struct lexer *lexer_init(u0);
 struct token_data *lexer_peek(struct lexer *l, u32 pos);
-void lexer_push_token_data(struct lexer *l, struct token_data *td);
-void lexer_push_token_value(struct lexer *l, enum token t, char *value);
-void lexer_expand(struct lexer *l);
+u0 lexer_push_token_data(struct lexer *l, struct token_data *td);
+u0 lexer_push_token_value(struct lexer *l, enum token t, char *value);
+u0 lexer_expand(struct lexer *l);
 
 struct token_data *token_data_alloc(enum token t, char *value);
 
 
 /* DEBUG STUFF */
 
-void token_data_print(struct token_data *td);
-void lexer_print(struct lexer *l);
+u0 token_data_print(struct token_data *td);
+u0 lexer_print(struct lexer *l);
 char *token_type_print(enum token t);
 
 /* ============= */

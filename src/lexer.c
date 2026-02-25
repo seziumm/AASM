@@ -1,4 +1,4 @@
-#include <rv32/rv32_type.h>
+#include <rv32/rv32ii.h>
 #include <string.h>
 #include <common.h>
 #include <ctype.h>
@@ -9,15 +9,15 @@
 
 /* DEBUG STUFF */
 
-void token_data_print(struct token_data *td) 
+u0 token_data_print(struct token_data *td) 
 {
   if(NULL == td) return;
-  printf("%s\t%s\n", token_type_print(td->type), td->value);
+  printf("TOKEN(%s, %s)\n", token_type_print(td->type), td->value);
 }
-void lexer_print(struct lexer *l) 
+u0 lexer_print(struct lexer *l) 
 {
   if(NULL == l) return;
-  printf("\nSIZE: %d\t\tCAPACITY %d\n", l->size, l->capacity);
+  printf("\n============ LEXER ==============\nSIZE: %d\tCAPACITY %d\n", l->size, l->capacity);
   for(u32 i = 0; i < l->size; i++)
   {
     token_data_print(l->tokens[i]);
@@ -35,7 +35,7 @@ char *token_type_print(enum token t)
     case token_instr:     return "INSTR";
     case token_register:  return "REG";
     case token_section:   return "SECT";
-    case token_tag:       return "TAG";
+    case token_label:       return "LABEL";
   }
 
   return "";
@@ -110,10 +110,9 @@ struct lexer *lexer_compile(char *c)
           u32 sz = lexer_count_while(c + 1, isupperdigit) + 1;
           char *new_c = strndup(c, sz);
 
-          lexer_push_token_value(l, token_tag, new_c);
+          lexer_push_token_value(l, token_label, new_c);
 
           c += sz;
-
         }
         else if(isdigit(*c) || *c == '+' || *c == '-')
         {
@@ -129,21 +128,18 @@ struct lexer *lexer_compile(char *c)
           u32 sz = lexer_count_while(c, isupperdigit);
           char *new_c = strndup(c, sz);
 
-
-          if(is_register(new_c))
+          if(rv32ii_is_register(new_c))
           {
             lexer_push_token_value(l, token_register, new_c);
           }
-          else if(is_instr(new_c))
+          else if(rv32ii_is_instr(new_c))
           {
             lexer_push_token_value(l, token_instr, new_c);
           }
           else 
           {
-            // TODO ADD A METHOD THAT CHECKS THAT THIS TAG IS VALID
-            lexer_push_token_value(l, token_tag, new_c);
-            // IF NOT DO THIS
-            // lexer_die(l, 1, "NO WORD FOUND %c\n", *c);
+            lexer_die(l, 1, "BAD WORD %s\n", new_c);
+          
           }
 
           c += sz;
@@ -163,7 +159,7 @@ struct lexer *lexer_compile(char *c)
 }
 
 
-void lexer_push_token_value(struct lexer *l, enum token t, char *value)
+u0 lexer_push_token_value(struct lexer *l, enum token t, char *value)
 {
   lexer_push_token_data(l, token_data_alloc(t, value));
 }
@@ -184,7 +180,7 @@ struct token_data *token_data_alloc(enum token t, char *value)
 
 }
 
-void token_data_free(struct token_data *td)
+u0 token_data_free(struct token_data *td)
 {
 
   free(td->value);
@@ -194,7 +190,7 @@ void token_data_free(struct token_data *td)
 
 }
 
-void lexer_expand(struct lexer *l)
+u0 lexer_expand(struct lexer *l)
 {
     u32 new_capacity = l->capacity * 2;
 
@@ -210,7 +206,7 @@ void lexer_expand(struct lexer *l)
 }
 
 
-void lexer_push_token_data(struct lexer *l, struct token_data *td)
+u0 lexer_push_token_data(struct lexer *l, struct token_data *td)
 {
 
   if(l->size >= l->capacity)
@@ -230,7 +226,7 @@ struct token_data *lexer_peek(struct lexer *l, u32 pos)
 }
 
 
-struct lexer *lexer_init(void)
+struct lexer *lexer_init(u0)
 {
   struct lexer *l = malloc(sizeof(struct lexer));
 
@@ -253,7 +249,7 @@ struct lexer *lexer_init(void)
 
 }
 
-void lexer_free(struct lexer *l) 
+u0 lexer_free(struct lexer *l) 
 {
 
   for(u32 i = 0; i < l->size; i++)

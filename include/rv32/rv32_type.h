@@ -143,7 +143,11 @@ static const struct instr rv32ii[] =
     INSTR_U_INIT_NO_REG("AUIPC",0x17, 0),
 
     // J-Type
-    INSTR_J_INIT_NO_REG("JAL", 0x6F, 0)
+    INSTR_J_INIT_NO_REG("JAL", 0x6F, 0),
+
+    // Pseudo-istruzioni (gestite dall'assembler)
+    { .label = "MV",  .type = I_TYPE, .code = 0 },
+    { .label = "RET", .type = I_TYPE, .code = 0 }
 };
 
 
@@ -151,13 +155,15 @@ static const struct instr rv32ii[] =
 
 static i32 is_register(char *p)
 {
-  /* ---------- ABI ---------- */
+  /* ---------- ABI in ordine di x0..x31 ---------- */
   static char *abi[] = 
   {
-    "ZERO","RA","SP","GP","TP",
-    "T0","T1","T2","T3","T4","T5","T6",
-    "S0","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11",
-    "A0","A1","A2","A3","A4","A5","A6","A7"
+    "ZERO","RA","SP","GP","TP",      /* x0..x4  */
+    "T0","T1","T2",                  /* x5..x7  */
+    "S0","S1",                       /* x8..x9  */
+    "A0","A1","A2","A3","A4","A5","A6","A7", /* x10..x17 */
+    "S2","S3","S4","S5","S6","S7","S8","S9","S10","S11", /* x18..x27 */
+    "T3","T4","T5","T6"              /* x28..x31 */
   };
 
   for (u32 i = 0; i < sizeof(abi)/sizeof(*abi); i++)

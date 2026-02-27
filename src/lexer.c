@@ -6,13 +6,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 /* DEBUG STUFF */
 
 u0 token_data_print(struct token_data *td) 
 {
   if(NULL == td) return;
-  printf("TOKEN(%s, %s)\n", token_type_print(td->type), td->value);
+  printf("TOKEN(%s, \"%s\")\n", token_to_str(td->type), td->value);
 }
 u0 lexer_print(struct lexer *l) 
 {
@@ -24,7 +23,7 @@ u0 lexer_print(struct lexer *l)
   }
 }
 
-char *token_type_print(enum token t)
+char *token_to_str(enum token t)
 {
   switch (t) 
   {
@@ -35,7 +34,7 @@ char *token_type_print(enum token t)
     case token_instr:     return "INSTR";
     case token_register:  return "REG";
     case token_section:   return "SECT";
-    case token_label:       return "LABEL";
+    case token_label:     return "LABEL";
   }
 
   return "";

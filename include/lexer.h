@@ -5,11 +5,11 @@
 #include <stdarg.h>
 #include <common.h>
 
-#define lexer_die(l, err, ...)       \
-    do {                             \
-        lexer_print(l);              \
-        die(err, __VA_ARGS__);       \
-    } while (0)
+#define lexer_die(l, err, ...)   \
+  do {                           \
+    lexer_print(l);              \
+    die(err, __VA_ARGS__);       \
+  } while (0)
 
 
 #define LEXER_INIT_CAPACITY         10
@@ -28,16 +28,16 @@ enum token
 
 struct token_data
 {
-    char *value;
-    enum token type;
+  char *value;
+  enum token type;
 };
 
 
 struct lexer
 {
-    struct token_data **tokens;
-    u32 size; /* number of tokens */
-    u32 capacity;
+  struct token_data **tokens;
+  u32 size; /* number of tokens */
+  u32 capacity;
 };
 
 
@@ -55,7 +55,7 @@ struct token_data *token_data_alloc(enum token t, char *value);
 
 u0 token_data_print(struct token_data *td);
 u0 lexer_print(struct lexer *l);
-char *token_type_print(enum token t);
+char *token_to_str(enum token t);
 
 /* ============= */
 

@@ -6,7 +6,8 @@
 #include <common.h>
 
 #define lexer_die(l, err, ...)   \
-  do {                           \
+  do                             \
+  {                              \
     lexer_print(l);              \
     die(err, __VA_ARGS__);       \
   } while (0)
@@ -23,7 +24,8 @@ enum token
   token_instr,   // 'ADD ... '
   token_register,// 'X1'
   token_section, // '.section .data' or '.org 0x10000'
-  token_label    // '&loop' => 'loop:'
+  token_label,   // '&loop' => 'loop:'
+  token_label_ref// '!loop' => 'loop'
 };
 
 struct token_data

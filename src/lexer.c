@@ -35,6 +35,7 @@ char *token_to_str(enum token t)
     case token_register:  return "REG";
     case token_section:   return "SECT";
     case token_label:     return "LABEL";
+    case token_label_ref: return "LABEL_REF";
   }
 
   return "";
@@ -101,6 +102,15 @@ struct lexer *lexer_compile(char *c)
           char *new_c = strndup(c, sz);
 
           lexer_push_token_value(l, token_section, new_c);
+
+          c += sz;
+        }
+        else if(*c == '!')
+        {
+          u32 sz = lexer_count_while(c + 1, isupperdigit) + 1;
+          char *new_c = strndup(c, sz);
+
+          lexer_push_token_value(l, token_label_ref, new_c);
 
           c += sz;
         }

@@ -18,7 +18,11 @@ i32 main(i32 argc, char **argv)
   struct lexer *l = lexer_compile(buffer);
 
   lexer_print(l);
+  struct ast_node *node = ast_compile(l);
+
+  ast_print(node, 0);
 
   free(buffer);
+
   return 0;
 }

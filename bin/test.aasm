@@ -1,0 +1,19 @@
+.ADDR 2147483648
+&MAIN
+    ADDI X5, X0, 1      # T0 = 1
+    ADDI X6, X0, 0      # T1 = 0
+    ADDI X7, X0, 11     # T2 = 11
+&LOOP
+    ADD  X6, X6, X5
+    ADDI X5, X5, 1
+    BNE  X5, X7, !LOOP
+    # UART ADDRESS 268435456
+    LUI  X28, 65536     # T3
+    # '5'
+    ADDI X5, X0, 53
+    SB   X5, 0(X28)
+    # NEWLINE
+    ADDI X5, X0, 10
+    SB   X5, 0(X28)
+&END
+    JAL X0, !END

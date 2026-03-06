@@ -16,7 +16,6 @@ u0 token_data_print(struct token_data *td)
 u0 lexer_print(struct lexer *l) 
 {
   if(NULL == l) return;
-  printf("\n============ LEXER ==============\nSIZE: %d\tCAPACITY %d\n", l->size, l->capacity);
   for(u32 i = 0; i < l->size; i++)
   {
     token_data_print(l->tokens[i]);
@@ -77,26 +76,39 @@ struct lexer *lexer_compile(char *c)
     {
       case ' ':
       case '\n':
-        c++;
-        break;
+        {
+          c++;
+          break;
+
+        }
       case '#':
+        {
           c += lexer_count_while(c, isnotnewline);
           break;
-      case ',':
-        c++;
-        lexer_push_token_value(l, token_comma, strdup(","));
-        break;
-      case '(':
-        c++;
-        lexer_push_token_value(l, token_lparen, strdup("("));
-        break;
-      case ')':
-        c++;
-        lexer_push_token_value(l, token_rparen, strdup(")"));
-        break;
-      default:
 
-        if(*c == '.')
+        }
+      case ',':
+        {
+          c++;
+          lexer_push_token_value(l, token_comma, strdup(","));
+          break;
+
+        }
+      case '(':
+        {
+          c++;
+          lexer_push_token_value(l, token_lparen, strdup("("));
+          break;
+
+        }
+      case ')':
+        {
+          c++;
+          lexer_push_token_value(l, token_rparen, strdup(")"));
+          break;
+
+        }
+      case '.':
         {
           u32 sz = lexer_count_while(c + 1, isupper) + 1;
           char *new_c = strndup(c, sz);
@@ -104,8 +116,10 @@ struct lexer *lexer_compile(char *c)
           lexer_push_token_value(l, token_section, new_c);
 
           c += sz;
+          break;
+
         }
-        else if(*c == '!')
+      case '!':
         {
           u32 sz = lexer_count_while(c + 1, isupperdigit) + 1;
           char *new_c = strndup(c, sz);
@@ -113,8 +127,10 @@ struct lexer *lexer_compile(char *c)
           lexer_push_token_value(l, token_label_ref, new_c);
 
           c += sz;
+          break;
+
         }
-        else if(*c == '&')
+      case '&':
         {
           u32 sz = lexer_count_while(c + 1, isupperdigit) + 1;
           char *new_c = strndup(c, sz);
@@ -122,8 +138,12 @@ struct lexer *lexer_compile(char *c)
           lexer_push_token_value(l, token_label, new_c);
 
           c += sz;
+          break;
         }
-        else if(isdigit(*c) || *c == '+' || *c == '-')
+
+      default:
+
+        if(isdigit(*c) || *c == '+' || *c == '-')
         {
           u32 hassign = (*c == '+' || *c == '-');
           u32 sz = lexer_count_while(c + hassign, isdigit) + hassign;
@@ -148,7 +168,7 @@ struct lexer *lexer_compile(char *c)
           else 
           {
             lexer_die(l, 1, "BAD WORD %s\n", new_c);
-          
+
           }
 
           c += sz;
@@ -160,7 +180,7 @@ struct lexer *lexer_compile(char *c)
 
 
         break;
-    
+
     }
   }
 

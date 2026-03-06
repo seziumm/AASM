@@ -9,7 +9,7 @@
    NODE MEMORY MANAGEMENT
    ====================================================================== */
 
-void ast_node_expand_children(struct ast_node *node)
+u0 ast_node_expand_children(struct ast_node *node)
 {
   u32 old_capacity = node->children_capacity;
   u32 new_capacity = (old_capacity == 0) ? AST_NODE_INIT_CAPACITY : old_capacity * 2;
@@ -24,7 +24,7 @@ void ast_node_expand_children(struct ast_node *node)
   node->children_capacity = new_capacity;
 }
 
-void ast_node_push_children(struct ast_node *node, struct ast_node *child)
+u0 ast_node_push_children(struct ast_node *node, struct ast_node *child)
 {
   if (node == NULL || child == NULL) return;
 
@@ -63,7 +63,7 @@ struct ast_node *ast_node_alloc(enum ast_node_type type,
   return node;
 }
 
-void ast_node_free(struct ast_node *node)
+u0 ast_node_free(struct ast_node *node)
 {
   if (node == NULL) return;
   for (u32 i = 0; i < node->children_size; i++)
@@ -126,10 +126,27 @@ struct ast_node *ast_create_operand(struct lexer *l, u32 *pos)
       break;
 
     case token_number:
-      node = ast_node_alloc(AST_OP_IMMEDIATE, 0, NULL);
-      node->data.op_immediate.value = (i32)strtol(td->value, NULL, 0);
+    {
+      i32 num = (i32)strtol(td->value, NULL, 0);
       consume(l, pos);
+
+      /* lookahead: number '(' reg ')' => memory operand with displacement */
+      if (peek_type(l, pos, token_lparen))
+      {
+        consume(l, pos);                              /* consuma '('   */
+        struct token_data *reg = expect(l, pos, token_register);
+        expect(l, pos, token_rparen);                 /* consuma ')'   */
+        node = ast_node_alloc(AST_OP_MEMORY, 0, NULL);
+        node->data.op_memory.displacement = num;
+        node->data.op_memory.base         = reg->value;
+      }
+      else
+      {
+        node = ast_node_alloc(AST_OP_IMMEDIATE, 0, NULL);
+        node->data.op_immediate.value = num;
+      }
       break;
+    }
 
     case token_label_ref:
       node = ast_node_alloc(AST_OP_LABEL_REF, 0, NULL);
@@ -205,7 +222,7 @@ struct ast_node *ast_create_instr(struct lexer *l, u32 *pos)
 
 u32 ast_build_label_params(struct lexer *l, u32 *pos, struct ast_node *node)
 {
-  (void)l; (void)pos; (void)node;
+  (u0)l; (u0)pos; (u0)node;
   return 0; /* nessun parametro extra dopo il nome */
 }
 
@@ -244,8 +261,19 @@ struct ast_node *ast_create_section(struct lexer *l, u32 *pos)
 
   ast_build_section_params(l, pos, node);
 
-  while (*pos < l->size && l->tokens[*pos]->type == token_label)
-    ast_node_push_children(node, ast_create_label(l, pos));
+  // todo aggiungere oltre alle lable altro
+  while (*pos < l->size)
+  {
+    if(l->tokens[*pos]->type == token_label)
+    {
+      ast_node_push_children(node, ast_create_label(l, pos));
+    }
+    else 
+    {
+      break;
+    }
+
+  }
 
   return node;
 }
@@ -256,7 +284,7 @@ struct ast_node *ast_create_section(struct lexer *l, u32 *pos)
 
 u32 ast_build_program_params(struct lexer *l, u32 *pos, struct ast_node *node)
 {
-  (void)l; (void)pos; (void)node;
+  (u0)l; (u0)pos; (u0)node;
   return 0;
 }
 
@@ -304,15 +332,18 @@ static const char *ast_type_str(enum ast_node_type t)
     case AST_OP_IMMEDIATE:return "OP_IMMEDIATE";
     case AST_OP_MEMORY:   return "OP_MEMORY";
     case AST_OP_LABEL_REF:return "OP_LABEL_REF";
-    default:              return "???";
   }
+  return "";
 }
 
 u0 ast_print(struct ast_node *node, i32 depth)
 {
   if (node == NULL) return;
 
-  for (i32 i = 0; i < depth; i++) printf(i == depth-1 ? "├── " : "│   ");
+  for (i32 i = 0; i < depth; i++)
+  {
+    printf(i == depth-1 ? "├── " : "│   ");
+  }
 
   switch (node->type)
   {
@@ -352,5 +383,7 @@ u0 ast_print(struct ast_node *node, i32 depth)
   }
 
   for (u32 i = 0; i < node->children_size; i++)
+  {
     ast_print(node->children[i], depth + 1);
+  }
 }

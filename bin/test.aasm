@@ -1,19 +1,50 @@
 .ADDR 2147483648
 &MAIN
-    ADDI X5, X0, 1      # T0 = 1
-    ADDI X6, X0, 0      # T1 = 0
-    ADDI X7, X0, 11     # T2 = 11
-&LOOP
-    ADD  X6, X6, X5
-    ADDI X5, X5, 1
-    BNE  X5, X7, !LOOP
     # UART ADDRESS 268435456
-    LUI  X28, 65536     # T3
-    # '5'
-    ADDI X5, X0, 53
+    LUI  X28, 65536     # T3 = base UART
+
+    # 'H' = 72
+    ADDI X5, X0, 72
     SB   X5, 0(X28)
-    # NEWLINE
+    # 'e' = 101
+    ADDI X5, X0, 101
+    SB   X5, 0(X28)
+    # 'l' = 108
+    ADDI X5, X0, 108
+    SB   X5, 0(X28)
+    # 'l' = 108
+    ADDI X5, X0, 108
+    SB   X5, 0(X28)
+    # 'o' = 111
+    ADDI X5, X0, 111
+    SB   X5, 0(X28)
+    # ',' = 44
+    ADDI X5, X0, 44
+    SB   X5, 0(X28)
+    # ' ' = 32
+    ADDI X5, X0, 32
+    SB   X5, 0(X28)
+    # 'W' = 87
+    ADDI X5, X0, 87
+    SB   X5, 0(X28)
+    # 'o' = 111
+    ADDI X5, X0, 111
+    SB   X5, 0(X28)
+    # 'r' = 114
+    ADDI X5, X0, 114
+    SB   X5, 0(X28)
+    # 'l' = 108
+    ADDI X5, X0, 108
+    SB   X5, 0(X28)
+    # 'd' = 100
+    ADDI X5, X0, 100
+    SB   X5, 0(X28)
+    # '!' = 33
+    ADDI X5, X0, 33
+    SB   X5, 0(X28)
+    # NEWLINE = 10
     ADDI X5, X0, 10
     SB   X5, 0(X28)
+
 &END
     JAL X0, !END

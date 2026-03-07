@@ -13,6 +13,7 @@ u0 token_data_print(struct token_data *td)
   if(NULL == td) return;
   printf("TOKEN(%s, \"%s\")\n", token_to_str(td->type), td->value);
 }
+
 u0 lexer_print(struct lexer *l) 
 {
   if(NULL == l) return;

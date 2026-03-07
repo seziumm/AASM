@@ -29,10 +29,10 @@ struct ast_node *ast_node_create(enum ast_node_type type)
 
   *n = (struct ast_node)
   {
-    .type      = type,
-    .children  = ch,
+    .type          = type,
+    .children      = ch,
     .children_size = 0,
-    .capacity  = AST_INIT_CAPACITY,
+    .capacity      = AST_INIT_CAPACITY,
   };
 
   return n;
@@ -80,14 +80,14 @@ u0 ast_node_push(struct ast_node *parent, struct ast_node *child)
  *  Convenience constructors
  * ============================================================ */
 
-struct ast_node *ast_node_instr(enum rv32i_instr instr)
+struct ast_node *ast_node_create_instr(enum rv32i_instr instr)
 {
   struct ast_node *n = ast_node_create(AST_INSTR);
   n->as_instr.instr  = instr;
   return n;
 }
 
-struct ast_node *ast_node_label(const char *name)
+struct ast_node *ast_node_create_label(const char *name)
 {
   struct ast_node *n = ast_node_create(AST_LABEL);
   n->as_label.name   = name;
@@ -95,31 +95,31 @@ struct ast_node *ast_node_label(const char *name)
   return n;
 }
 
-struct ast_node *ast_node_label_ref(const char *name)
+struct ast_node *ast_node_create_label_ref(const char *name)
 {
   struct ast_node *n   = ast_node_create(AST_LABEL_REF);
   n->as_label_ref.name = name;
   return n;
 }
 
-struct ast_node *ast_node_section(u32 addr)
+struct ast_node *ast_node_create_section(u32 addr)
 {
   struct ast_node *n = ast_node_create(AST_SECTION);
   n->as_section.addr = addr;
   return n;
 }
 
-struct ast_node *ast_node_reg(u8 reg)
+struct ast_node *ast_node_create_reg(u8 reg)
 {
   struct ast_node *n = ast_node_create(AST_REG);
   n->as_reg.reg      = reg;
   return n;
 }
 
-struct ast_node *ast_node_imm(i32 value)
+struct ast_node *ast_node_create_imm(i32 value)
 {
-  struct ast_node *n  = ast_node_create(AST_IMM);
-  n->as_imm.value     = value;
+  struct ast_node *n = ast_node_create(AST_IMM);
+  n->as_imm.value    = value;
   return n;
 }
 
@@ -165,14 +165,14 @@ static i32 parser_at_end(struct parser *p)
    Crashes with a descriptive message otherwise. */
 static struct token_data *parser_expect(struct parser *p, enum token_type expected)
 {
-  if(parser_at_end(p))
+  if (parser_at_end(p))
     parser_die(NULL, 1,
       "parser_expect: unexpected end of token stream (expected %s)",
       token_to_str(expected));
 
   struct token_data *t = parser_peek(p);
 
-  if(t->type != expected)
+  if (t->type != expected)
     parser_die(NULL, 1,
       "parser_expect: expected %s but got %s (\"%s\")",
       token_to_str(expected),
@@ -188,28 +188,28 @@ static struct token_data *parser_expect(struct parser *p, enum token_type expect
  *  parse_reg        → TOKEN_REGISTER  → AST_REG
  *  parse_imm        → TOKEN_NUMBER    → AST_IMM
  *  parse_label_ref  → TOKEN_LABEL_REF → AST_LABEL_REF
- *  parse_mem        → NUMBER(REG)     → AST_IMM  + AST_REG  (children of instr)
+ *  parse_mem        → NUMBER(REG)     → AST_IMM + AST_REG (children of instr)
  * ============================================================ */
 
 static struct ast_node *parse_reg(struct parser *p)
 {
   struct token_data *t = parser_expect(p, TOKEN_REGISTER);
   i32 idx = rv32_reg_lookup(t->value);
-  return ast_node_reg((u8)idx);
+  return ast_node_create_reg((u8)idx);
 }
 
 static struct ast_node *parse_imm(struct parser *p)
 {
   struct token_data *t = parser_expect(p, TOKEN_NUMBER);
   i32 val = (i32)atoi(t->value);
-  return ast_node_imm(val);
+  return ast_node_create_imm(val);
 }
 
 static struct ast_node *parse_label_ref(struct parser *p)
 {
   struct token_data *t = parser_expect(p, TOKEN_LABEL_REF);
   /* skip the leading '@' */
-  return ast_node_label_ref(t->value + 1);
+  return ast_node_create_label_ref(t->value + 1);
 }
 
 /* Parses  imm ( reg )  —  pushes imm then reg as children of instr */
@@ -218,12 +218,12 @@ static u0 parse_mem(struct parser *p, struct ast_node *instr)
   struct token_data *t;
 
   t = parser_expect(p, TOKEN_NUMBER);
-  ast_node_push(instr, ast_node_imm((i32)atoi(t->value)));
+  ast_node_push(instr, ast_node_create_imm((i32)atoi(t->value)));
 
   parser_expect(p, TOKEN_LPAREN);
 
   t = parser_expect(p, TOKEN_REGISTER);
-  ast_node_push(instr, ast_node_reg((u8)rv32_reg_lookup(t->value)));
+  ast_node_push(instr, ast_node_create_reg((u8)rv32_reg_lookup(t->value)));
 
   parser_expect(p, TOKEN_RPAREN);
 }
@@ -231,21 +231,14 @@ static u0 parse_mem(struct parser *p, struct ast_node *instr)
 /* ============================================================
  *  Instruction operand dispatch
  *
- *  The token stream encodes operands according to instruction
- *  type.  We look up the type from the opcode table and parse
- *  the right operand sequence:
- *
  *  R-type :  rd , rs1 , rs2
- *  I-type arithmetic / jump:
- *            rd , rs1 , imm
- *  I-type load:
- *            rd , imm ( rs1 )
+ *  I-type arithmetic:  rd , rs1 , imm
+ *  I-type load:        rd , imm ( rs1 )
  *  S-type :  rs2 , imm ( rs1 )
- *  B-type :  rs1 , rs2 , imm_or_label_ref
+ *  B-type :  rs1 , rs2 , imm | @label
  *  U-type :  rd , imm
- *  J-type :  rd , imm_or_label_ref
- *
- *  ECALL / EBREAK have no operands.
+ *  J-type :  rd , imm | @label
+ *  ECALL / EBREAK : no operands
  * ============================================================ */
 
 static i32 is_load(enum rv32i_instr idx)
@@ -254,10 +247,8 @@ static i32 is_load(enum rv32i_instr idx)
       || idx == RV32I_LBU || idx == RV32I_LHU;
 }
 
-/* Peek at the next *meaningful* token to decide imm vs label ref */
 static i32 next_is_label_ref(struct parser *p)
 {
-  /* skip comma if present */
   u32 look = p->pos;
   if (look < p->size && p->tokens[look]->type == TOKEN_COMMA) look++;
   if (look >= p->size) return 0;
@@ -271,57 +262,44 @@ static u0 skip_comma(struct parser *p)
 }
 
 static u0 parse_instr_operands(struct parser *p,
-                                struct ast_node      *node,
-                                enum rv32i_instr      idx)
+                                struct ast_node *node,
+                                enum rv32i_instr idx)
 {
   const struct rv32ii_opcode_entry *e = rv32ii_instr_from_enum(idx);
 
-  /* no operands */
   if (idx == RV32I_ECALL || idx == RV32I_EBREAK)
     return;
 
   switch (e->type)
   {
-    /* ---- R-type : rd , rs1 , rs2 ---- */
     case R_TYPE:
       ast_node_push(node, parse_reg(p));   skip_comma(p);
       ast_node_push(node, parse_reg(p));   skip_comma(p);
       ast_node_push(node, parse_reg(p));
       break;
 
-    /* ---- I-type ---- */
     case I_TYPE:
       if (is_load(idx))
       {
-        /* rd , imm ( rs1 ) */
         ast_node_push(node, parse_reg(p));
         skip_comma(p);
         parse_mem(p, node);
       }
-      else if (idx == RV32I_JALR)
-      {
-        /* rd , rs1 , imm */
-        ast_node_push(node, parse_reg(p));   skip_comma(p);
-        ast_node_push(node, parse_reg(p));   skip_comma(p);
-        ast_node_push(node, parse_imm(p));
-      }
       else
       {
-        /* rd , rs1 , imm  (arithmetic immediates, shifts) */
+        /* JALR and all arithmetic immediates share the same form */
         ast_node_push(node, parse_reg(p));   skip_comma(p);
         ast_node_push(node, parse_reg(p));   skip_comma(p);
         ast_node_push(node, parse_imm(p));
       }
       break;
 
-    /* ---- S-type : rs2 , imm ( rs1 ) ---- */
     case S_TYPE:
       ast_node_push(node, parse_reg(p));
       skip_comma(p);
       parse_mem(p, node);
       break;
 
-    /* ---- B-type : rs1 , rs2 , imm | @label ---- */
     case B_TYPE:
       ast_node_push(node, parse_reg(p));   skip_comma(p);
       ast_node_push(node, parse_reg(p));   skip_comma(p);
@@ -331,13 +309,11 @@ static u0 parse_instr_operands(struct parser *p,
         ast_node_push(node, parse_imm(p));
       break;
 
-    /* ---- U-type : rd , imm ---- */
     case U_TYPE:
       ast_node_push(node, parse_reg(p));   skip_comma(p);
       ast_node_push(node, parse_imm(p));
       break;
 
-    /* ---- J-type : rd , imm | @label ---- */
     case J_TYPE:
       ast_node_push(node, parse_reg(p));   skip_comma(p);
       if (next_is_label_ref(p))
@@ -349,28 +325,93 @@ static u0 parse_instr_operands(struct parser *p,
 }
 
 /* ============================================================
- *  Section header  →  .SECTION  number?
+ *  Recursive descent
  *
- *  .TEXT         → addr = 0  (default, no number follows)
- *  .DATA         → addr = 0
- *  .ADDR 0x1000  → addr = that number   (TOKEN_NUMBER after section)
+ *  parse_program     → parse_section_node*
+ *  parse_section_node→ TOKEN_SECTION  ( parse_label_block | parse_instr_node )*
+ *  parse_label_block → TOKEN_LABEL    parse_instr_node*
+ *  parse_instr_node  → TOKEN_INSTR    operands
  *
- *  We just peek: if the next token is a number we consume it.
+ *  Each level stops as soon as it sees a token that belongs to
+ *  a higher level, without consuming it (the caller owns it).
  * ============================================================ */
 
-static struct ast_node *parse_section(struct parser *p)
+static struct ast_node *parse_instr_node(struct parser *p)
 {
-  struct token_data *t    = parser_advance(p); /* TOKEN_SECTION */
-  u32                addr = 0;
+  struct token_data *t = parser_advance(p);   /* TOKEN_INSTR */
+  const struct rv32ii_opcode_entry *e = rv32ii_instr_from_label(t->value);
+  struct ast_node *instr = ast_node_create_instr(e->index);
+  parse_instr_operands(p, instr, e->index);
+  return instr;
+}
 
-  if (!parser_at_end(p) && parser_peek(p)->type == TOKEN_NUMBER)
+/* Parses one label and all instructions that follow it, until
+   the next TOKEN_LABEL, TOKEN_SECTION, or end of stream. */
+static struct ast_node *parse_label_block(struct parser *p)
+{
+  struct token_data *t   = parser_advance(p);         /* TOKEN_LABEL  */
+  struct ast_node   *lbl = ast_node_create_label(t->value + 1); /* skip '&'  */
+
+  while (!parser_at_end(p))
   {
-    struct token_data *num = parser_advance(p);
-    addr = (u32)atoi(num->value);
+    enum token_type tt = parser_peek(p)->type;
+
+    if (tt == TOKEN_SECTION || tt == TOKEN_LABEL)
+      break;   /* belongs to caller */
+
+    if (tt == TOKEN_INSTR)
+    {
+      ast_node_push(lbl, parse_instr_node(p));
+      continue;
+    }
+
+    parser_die(NULL, 1,
+      "parse_label_block: unexpected token %s (\"%s\")",
+      token_to_str(tt), parser_peek(p)->value);
   }
 
-  (u0)t;   /* section name available as t->value if needed later */
-  return ast_node_section(addr);
+  return lbl;
+}
+
+/* Parses one section directive and everything it contains, until
+   the next TOKEN_SECTION or end of stream. */
+static struct ast_node *parse_section_node(struct parser *p)
+{
+  struct token_data *t    = parser_advance(p);   /* TOKEN_SECTION */
+  u32                addr = 0;
+  (u0)t;
+
+  struct token_data *num = parser_expect(p, TOKEN_NUMBER);
+  addr = (u32)atoi(num->value); /* a number is mandatory */
+
+  struct ast_node *sec = ast_node_create_section(addr);
+
+  while (!parser_at_end(p))
+  {
+    enum token_type tt = parser_peek(p)->type;
+
+    if (tt == TOKEN_SECTION)
+      break;   /* belongs to caller */
+
+    if (tt == TOKEN_LABEL)
+    {
+      ast_node_push(sec, parse_label_block(p));
+      continue;
+    }
+
+    if (tt == TOKEN_INSTR)
+    {
+      /* instructions before any label live directly under the section */
+      ast_node_push(sec, parse_instr_node(p));
+      continue;
+    }
+
+    parser_die(NULL, 1,
+      "parse_section_node: unexpected token %s (\"%s\")",
+      token_to_str(tt), parser_peek(p)->value);
+  }
+
+  return sec;
 }
 
 /* ============================================================
@@ -386,44 +427,18 @@ struct ast_node *parser_build(struct lexer *l)
 
   while (!parser_at_end(&p))
   {
-    struct token_data *t = parser_peek(&p);
+    enum token_type tt = parser_peek(&p)->type;
 
-    switch (t->type)
+    if (tt == TOKEN_SECTION)
     {
-      /* ---- section directive ---- */
-      case TOKEN_SECTION:
-      {
-        struct ast_node *sec = parse_section(&p);
-        ast_node_push(root, sec);
-        break;
-      }
-
-      /* ---- label definition ---- */
-      case TOKEN_LABEL:
-      {
-        parser_advance(&p);
-        /* skip leading '&' */
-        struct ast_node *lbl = ast_node_label(t->value + 1);
-        ast_node_push(root, lbl);
-        break;
-      }
-
-      /* ---- instruction ---- */
-      case TOKEN_INSTR:
-      {
-        parser_advance(&p);
-        const struct rv32ii_opcode_entry *e = rv32ii_instr_from_label(t->value);
-        struct ast_node *instr = ast_node_instr(e->index);
-        parse_instr_operands(&p, instr, e->index);
-        ast_node_push(root, instr);
-        break;
-      }
-
-      /* ---- skip anything unexpected without crashing ---- */
-      default:
-        parser_advance(&p);
-        break;
+      ast_node_push(root, parse_section_node(&p));
+      continue;
     }
+
+    /* anything outside a section is a hard error */
+    parser_die(NULL, 1,
+      "parser_build: token %s (\"%s\") found outside any section",
+      token_to_str(tt), parser_peek(&p)->value);
   }
 
   return root;

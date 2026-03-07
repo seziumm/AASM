@@ -10,7 +10,7 @@ struct ast_node *ast_node_alloc(u0)
 {
   struct ast_node *n = malloc(sizeof(struct ast_node));
 
-  if(NULL == n)
+  if (NULL == n)
     parser_die(NULL, 1, "malloc() failed in ast_node_alloc()");
 
   return n;
@@ -21,7 +21,7 @@ struct ast_node *ast_node_create(enum ast_node_type type)
   struct ast_node  *n  = ast_node_alloc();
   struct ast_node **ch = malloc(AST_INIT_CAPACITY * sizeof(struct ast_node *));
 
-  if(NULL == ch)
+  if (NULL == ch)
   {
     free(n);
     parser_die(NULL, 1, "malloc() failed in ast_node_create()");
@@ -40,9 +40,9 @@ struct ast_node *ast_node_create(enum ast_node_type type)
 
 u0 ast_node_free(struct ast_node **n)
 {
-  if(NULL == n || NULL == *n) return;
+  if (NULL == n || NULL == *n) return;
 
-  for(u32 i = 0; i < (*n)->children_size; i++)
+  for (u32 i = 0; i < (*n)->children_size; i++)
     ast_node_free(&(*n)->children[i]);
 
   free((*n)->children);
@@ -59,7 +59,7 @@ static u0 ast_node_expand(struct ast_node *n)
   u32               new_capacity = n->capacity * 2;
   struct ast_node **new_children = realloc(n->children, new_capacity * sizeof(struct ast_node *));
 
-  if(NULL == new_children)
+  if (NULL == new_children)
     parser_die(NULL, 1, "realloc() failed in ast_node_expand()");
 
   n->children = new_children;
@@ -68,12 +68,10 @@ static u0 ast_node_expand(struct ast_node *n)
 
 u0 ast_node_push(struct ast_node *parent, struct ast_node *child)
 {
-  if(NULL == parent || NULL == child) return;
+  if (NULL == parent || NULL == child) return;
 
-  if(parent->children_size >= parent->capacity)
-  {
+  if (parent->children_size >= parent->capacity)
     ast_node_expand(parent);
-  }
 
   parent->children[parent->children_size++] = child;
 }
@@ -82,20 +80,14 @@ u0 ast_node_push(struct ast_node *parent, struct ast_node *child)
  *  Convenience constructors
  * ============================================================ */
 
-struct ast_node *ast_node_create_program(u0)
-{
-  struct ast_node *n = ast_node_create(AST_PROGRAM);
-  return n;
-}
-
-struct ast_node *ast_node_create_instr(enum rv32i_instr instr)
+struct ast_node *ast_node_instr(enum rv32i_instr instr)
 {
   struct ast_node *n = ast_node_create(AST_INSTR);
   n->as_instr.instr  = instr;
   return n;
 }
 
-struct ast_node *ast_node_create_label(const char *name)
+struct ast_node *ast_node_label(const char *name)
 {
   struct ast_node *n = ast_node_create(AST_LABEL);
   n->as_label.name   = name;
@@ -103,28 +95,28 @@ struct ast_node *ast_node_create_label(const char *name)
   return n;
 }
 
-struct ast_node *ast_node_create_label_ref(const char *name)
+struct ast_node *ast_node_label_ref(const char *name)
 {
   struct ast_node *n   = ast_node_create(AST_LABEL_REF);
   n->as_label_ref.name = name;
   return n;
 }
 
-struct ast_node *ast_node_create_section(u32 addr)
+struct ast_node *ast_node_section(u32 addr)
 {
   struct ast_node *n = ast_node_create(AST_SECTION);
   n->as_section.addr = addr;
   return n;
 }
 
-struct ast_node *ast_node_create_reg(u8 reg)
+struct ast_node *ast_node_reg(u8 reg)
 {
   struct ast_node *n = ast_node_create(AST_REG);
   n->as_reg.reg      = reg;
   return n;
 }
 
-struct ast_node *ast_node_create_imm(i32 value)
+struct ast_node *ast_node_imm(i32 value)
 {
   struct ast_node *n  = ast_node_create(AST_IMM);
   n->as_imm.value     = value;
@@ -154,19 +146,40 @@ static struct parser parser_init(struct lexer *l)
 
 static struct token_data *parser_peek(struct parser *p)
 {
-  if(p->pos >= p->size) return NULL;
+  if (p->pos >= p->size) return NULL;
   return p->tokens[p->pos];
 }
 
 static struct token_data *parser_advance(struct parser *p)
 {
-  if(p->pos >= p->size) return NULL;
+  if (p->pos >= p->size) return NULL;
   return p->tokens[p->pos++];
 }
 
 static i32 parser_at_end(struct parser *p)
 {
   return p->pos >= p->size;
+}
+
+/* Consumes and returns the current token if it matches `expected`.
+   Crashes with a descriptive message otherwise. */
+static struct token_data *parser_expect(struct parser *p, enum token_type expected)
+{
+  if(parser_at_end(p))
+    parser_die(NULL, 1,
+      "parser_expect: unexpected end of token stream (expected %s)",
+      token_to_str(expected));
+
+  struct token_data *t = parser_peek(p);
+
+  if(t->type != expected)
+    parser_die(NULL, 1,
+      "parser_expect: expected %s but got %s (\"%s\")",
+      token_to_str(expected),
+      token_to_str(t->type),
+      t->value);
+
+  return parser_advance(p);
 }
 
 /* ============================================================
@@ -180,23 +193,23 @@ static i32 parser_at_end(struct parser *p)
 
 static struct ast_node *parse_reg(struct parser *p)
 {
-  struct token_data *t = parser_advance(p);
+  struct token_data *t = parser_expect(p, TOKEN_REGISTER);
   i32 idx = rv32_reg_lookup(t->value);
-  return ast_node_create_reg((u8)idx);
+  return ast_node_reg((u8)idx);
 }
 
 static struct ast_node *parse_imm(struct parser *p)
 {
-  struct token_data *t = parser_advance(p);
+  struct token_data *t = parser_expect(p, TOKEN_NUMBER);
   i32 val = (i32)atoi(t->value);
-  return ast_node_create_imm(val);
+  return ast_node_imm(val);
 }
 
 static struct ast_node *parse_label_ref(struct parser *p)
 {
-  struct token_data *t = parser_advance(p);
+  struct token_data *t = parser_expect(p, TOKEN_LABEL_REF);
   /* skip the leading '@' */
-  return ast_node_create_label_ref(t->value + 1);
+  return ast_node_label_ref(t->value + 1);
 }
 
 /* Parses  imm ( reg )  —  pushes imm then reg as children of instr */
@@ -204,16 +217,15 @@ static u0 parse_mem(struct parser *p, struct ast_node *instr)
 {
   struct token_data *t;
 
-  /* imm */
-  t = parser_advance(p);               /* TOKEN_NUMBER  */
-  ast_node_push(instr, ast_node_create_imm((i32)atoi(t->value)));
+  t = parser_expect(p, TOKEN_NUMBER);
+  ast_node_push(instr, ast_node_imm((i32)atoi(t->value)));
 
-  parser_advance(p);                   /* TOKEN_LPAREN  */
+  parser_expect(p, TOKEN_LPAREN);
 
-  t = parser_advance(p);               /* TOKEN_REGISTER */
-  ast_node_push(instr, ast_node_create_reg((u8)rv32_reg_lookup(t->value)));
+  t = parser_expect(p, TOKEN_REGISTER);
+  ast_node_push(instr, ast_node_reg((u8)rv32_reg_lookup(t->value)));
 
-  parser_advance(p);                   /* TOKEN_RPAREN  */
+  parser_expect(p, TOKEN_RPAREN);
 }
 
 /* ============================================================
@@ -247,14 +259,14 @@ static i32 next_is_label_ref(struct parser *p)
 {
   /* skip comma if present */
   u32 look = p->pos;
-  if(look < p->size && p->tokens[look]->type == TOKEN_COMMA) look++;
-  if(look >= p->size) return 0;
+  if (look < p->size && p->tokens[look]->type == TOKEN_COMMA) look++;
+  if (look >= p->size) return 0;
   return p->tokens[look]->type == TOKEN_LABEL_REF;
 }
 
 static u0 skip_comma(struct parser *p)
 {
-  if(!parser_at_end(p) && parser_peek(p)->type == TOKEN_COMMA)
+  if (!parser_at_end(p) && parser_peek(p)->type == TOKEN_COMMA)
     parser_advance(p);
 }
 
@@ -265,7 +277,7 @@ static u0 parse_instr_operands(struct parser *p,
   const struct rv32ii_opcode_entry *e = rv32ii_instr_from_enum(idx);
 
   /* no operands */
-  if(idx == RV32I_ECALL || idx == RV32I_EBREAK)
+  if (idx == RV32I_ECALL || idx == RV32I_EBREAK)
     return;
 
   switch (e->type)
@@ -279,14 +291,14 @@ static u0 parse_instr_operands(struct parser *p,
 
     /* ---- I-type ---- */
     case I_TYPE:
-      if(is_load(idx))
+      if (is_load(idx))
       {
         /* rd , imm ( rs1 ) */
         ast_node_push(node, parse_reg(p));
         skip_comma(p);
         parse_mem(p, node);
       }
-      else if(idx == RV32I_JALR)
+      else if (idx == RV32I_JALR)
       {
         /* rd , rs1 , imm */
         ast_node_push(node, parse_reg(p));   skip_comma(p);
@@ -313,7 +325,7 @@ static u0 parse_instr_operands(struct parser *p,
     case B_TYPE:
       ast_node_push(node, parse_reg(p));   skip_comma(p);
       ast_node_push(node, parse_reg(p));   skip_comma(p);
-      if(next_is_label_ref(p))
+      if (next_is_label_ref(p))
         ast_node_push(node, parse_label_ref(p));
       else
         ast_node_push(node, parse_imm(p));
@@ -328,7 +340,7 @@ static u0 parse_instr_operands(struct parser *p,
     /* ---- J-type : rd , imm | @label ---- */
     case J_TYPE:
       ast_node_push(node, parse_reg(p));   skip_comma(p);
-      if(next_is_label_ref(p))
+      if (next_is_label_ref(p))
         ast_node_push(node, parse_label_ref(p));
       else
         ast_node_push(node, parse_imm(p));
@@ -351,14 +363,14 @@ static struct ast_node *parse_section(struct parser *p)
   struct token_data *t    = parser_advance(p); /* TOKEN_SECTION */
   u32                addr = 0;
 
-  if(!parser_at_end(p) && parser_peek(p)->type == TOKEN_NUMBER)
+  if (!parser_at_end(p) && parser_peek(p)->type == TOKEN_NUMBER)
   {
     struct token_data *num = parser_advance(p);
     addr = (u32)atoi(num->value);
   }
 
   (u0)t;   /* section name available as t->value if needed later */
-  return ast_node_create_section(addr);
+  return ast_node_section(addr);
 }
 
 /* ============================================================
@@ -367,10 +379,10 @@ static struct ast_node *parse_section(struct parser *p)
 
 struct ast_node *parser_build(struct lexer *l)
 {
-  if(NULL == l) return NULL;
+  if (NULL == l) return NULL;
 
   struct parser    p    = parser_init(l);
-  struct ast_node *root = ast_node_create_program();
+  struct ast_node *root = ast_node_create(AST_PROGRAM);
 
   while (!parser_at_end(&p))
   {
@@ -391,7 +403,7 @@ struct ast_node *parser_build(struct lexer *l)
       {
         parser_advance(&p);
         /* skip leading '&' */
-        struct ast_node *lbl = ast_node_create_label(t->value + 1);
+        struct ast_node *lbl = ast_node_label(t->value + 1);
         ast_node_push(root, lbl);
         break;
       }
@@ -401,7 +413,7 @@ struct ast_node *parser_build(struct lexer *l)
       {
         parser_advance(&p);
         const struct rv32ii_opcode_entry *e = rv32ii_instr_from_label(t->value);
-        struct ast_node *instr = ast_node_create_instr(e->index);
+        struct ast_node *instr = ast_node_instr(e->index);
         parse_instr_operands(&p, instr, e->index);
         ast_node_push(root, instr);
         break;
@@ -433,15 +445,14 @@ static const char *ast_node_type_str(enum ast_node_type t)
     case AST_REG:       return "REG";
     case AST_IMM:       return "IMM";
   }
-
   return "";
 }
 
 u0 ast_node_print(struct ast_node *n, u32 depth)
 {
-  if(NULL == n) return;
+  if (NULL == n) return;
 
-  for(u32 i = 0; i < depth; i++) printf("  ");
+  for (u32 i = 0; i < depth; i++) printf("  ");
 
   switch (n->type)
   {
@@ -471,6 +482,6 @@ u0 ast_node_print(struct ast_node *n, u32 depth)
       break;
   }
 
-  for(u32 i = 0; i < n->children_size; i++)
+  for (u32 i = 0; i < n->children_size; i++)
     ast_node_print(n->children[i], depth + 1);
 }

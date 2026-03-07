@@ -19,19 +19,19 @@ char *fread_path(const char *path)
 {
   FILE *f = fopen(path, "rb");
 
-  if (NULL == f) 
+  if(NULL == f) 
   {
     die(1, "A fopen(%s) error occurred", path);
   }
 
-  if (fseek(f, 0, SEEK_END) != 0) 
+  if(fseek(f, 0, SEEK_END) != 0) 
   {
     fclose(f);
     die(1, "A fseek() error occurred");
   }
 
   i32 size = ftell(f);
-  if (size < 0) 
+  if(size < 0) 
   {
     fclose(f);
     die(1, "A ftell() error occurred");
@@ -41,7 +41,7 @@ char *fread_path(const char *path)
 
   char *buffer = malloc(size);
 
-  if (NULL == buffer) 
+  if(NULL == buffer) 
   {
     fclose(f);
     die(1, "A malloc() error occurred");
@@ -49,7 +49,7 @@ char *fread_path(const char *path)
 
   i32 read_bytes = fread(buffer, 1, size, f);
 
-  if (read_bytes != size) 
+  if(read_bytes != size) 
   {
     free(buffer);
     fclose(f);

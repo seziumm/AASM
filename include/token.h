@@ -60,4 +60,4 @@ const char *token_to_str(enum token_type t);
 
 u0 token_data_print(struct token_data *td);
 
-#endif /* _TOKEN_H */
+#endif

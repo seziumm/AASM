@@ -3,7 +3,7 @@
 
 #include <rv32/rv32_instr.h>
 #include <rv32/rv32_reg.h>
-#include <rv32/rv32_type.h>
+#include <lexer.h>
 #include <common.h>
 
 #define AST_INIT_CAPACITY 8
@@ -26,7 +26,10 @@ enum ast_node_type
   AST_INSTR,
   AST_LABEL,
   AST_LABEL_REF,
-  AST_SECTION
+  AST_SECTION,
+  AST_PROGRAM,   /* root node                          */
+  AST_REG,       /* register operand   (u8  reg index) */
+  AST_IMM,       /* immediate operand  (i32 value)     */
 };
 
 /* ============================================================
@@ -35,18 +38,21 @@ enum ast_node_type
 
 struct ast_node
 {
-  enum ast_node_type  type;
+  enum ast_node_type type;
 
   union
   {
-    enum rv32i_instr  instr;  /* AST_INSTR                 */
-    const char       *name;   /* AST_LABEL / AST_LABEL_REF */
-    u32               addr;   /* AST_SECTION               */
+    struct { enum rv32i_instr instr;     } as_instr;
+    struct { const char *name; u32 addr; } as_label;
+    struct { const char *name;           } as_label_ref;
+    struct { u32 addr;                   } as_section;
+    struct { u8  reg;                    } as_reg;
+    struct { i32 value;                  } as_imm;
   };
 
-  struct ast_node   **children;
-  u32                 nchildren;
-  u32                 capacity;
+  struct ast_node **children;
+  u32               children_size;
+  u32               capacity;
 };
 
 /* ============================================================
@@ -71,6 +77,14 @@ struct ast_node *ast_node_create_instr(enum rv32i_instr instr);
 struct ast_node *ast_node_create_label(const char *name);
 struct ast_node *ast_node_create_label_ref(const char *name);
 struct ast_node *ast_node_create_section(u32 addr);
+struct ast_node *ast_node_create_reg(u8 reg);
+struct ast_node *ast_node_create_imm(i32 value);
+
+/* ============================================================
+ *  Parser entry point
+ * ============================================================ */
+
+struct ast_node *parser_build(struct lexer *l);
 
 /* ============================================================
  *  Debug

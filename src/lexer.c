@@ -1,12 +1,8 @@
+#include <lexer.h>
 #include <rv32/rv32_reg.h>
 #include <rv32/rv32_instr.h>
-#include <token.h>
-#include <string.h>
-#include <common.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <lexer.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 static inline u0 lexer_push_token_value(struct lexer *l, enum token_type t, char *value)
 {
@@ -157,7 +153,7 @@ u0 lexer_expand(struct lexer *l)
 
     struct token_data **new_tokens = realloc(l->tokens, new_capacity * sizeof(struct token_data *));
 
-    if (NULL == new_tokens) 
+    if(NULL == new_tokens) 
     {
       lexer_die(l, 1, "A realloc() error occurred");
     }
@@ -206,9 +202,9 @@ struct lexer *lexer_init(u0)
 
 u0 lexer_free(struct lexer **l) 
 {
-  if (NULL == l || NULL == *l) return;
+  if(NULL == l || NULL == *l) return;
 
-  for (u32 i = 0; i < (*l)->size; i++)
+  for(u32 i = 0; i < (*l)->size; i++)
   {
     token_data_free(&(*l)->tokens[i]);
   }
@@ -226,10 +222,6 @@ u0 lexer_print(struct lexer *l)
   for(u32 i = 0; i < l->size; i++)
   {
     token_data_print(l->tokens[i]);
-    printf("\n");
   }
 }
-
-
-
 

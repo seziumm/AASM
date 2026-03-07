@@ -44,9 +44,13 @@ static const struct { const char *name; u8 index; } rv32_reg_table[] =
 
 static inline i32 rv32_reg_lookup(const char *name)
 {
-  for (u32 i = 0; i < RV32_REG_TABLE_SIZE; ++i)
+  for(u32 i = 0; i < RV32_REG_TABLE_SIZE; ++i)
+  {
     if (strcmp(name, rv32_reg_table[i].name) == 0)
+    {
       return rv32_reg_table[i].index;
+    }
+  }
 
   return -1;
 }

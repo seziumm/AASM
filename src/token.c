@@ -59,7 +59,7 @@ const char *token_to_str(enum token_type t)
 u0 token_data_print(struct token_data *td) 
 {
   if(NULL == td) return;
-  printf("TOKEN(%s, \"%s\")", token_to_str(td->type), td->value);
+  printf("TOKEN(%s, \"%s\")\n", token_to_str(td->type), td->value);
 }
 
 

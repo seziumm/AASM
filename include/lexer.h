@@ -6,7 +6,7 @@
 #include <token.h>
 #include <type.h>
 
-#define LEXER_INIT_CAPACITY 10
+#define LEXER_INIT_CAPACITY     4
 
 /* Prints the current token stream then calls die() with the
    given error code and message.  Used for unrecoverable lexer
@@ -50,4 +50,4 @@ u0 lexer_expand(struct lexer *l);                                  /* double tok
 
 u0 lexer_print(struct lexer *l); /* print all tokens to stdout */
 
-#endif /* _LEXER_H */
+#endif

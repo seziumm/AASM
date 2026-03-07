@@ -6,14 +6,16 @@ u0 die(i32 err, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt); 
-    vfprintf(stderr, fmt, args);
+    vfprintf(STDDIE, fmt, args);
     va_end(args);
-    fprintf(stderr, "\n");
+    fprintf(STDDIE, "\n");
+
+    fflush(STDDIE);
 
     exit(err);
 }
 
-char *freadbuf(const char *path) 
+char *fread_path(const char *path) 
 {
   FILE *f = fopen(path, "rb");
 
@@ -45,9 +47,9 @@ char *freadbuf(const char *path)
     die(1, "A malloc() error occurred");
   }
 
-  size_t read_bytes = fread(buffer, 1, size, f);
+  i32 read_bytes = fread(buffer, 1, size, f);
 
-  if (read_bytes != (size_t)size) 
+  if (read_bytes != size) 
   {
     free(buffer);
     fclose(f);

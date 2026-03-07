@@ -1,64 +1,53 @@
 #ifndef _LEXER_H
 #define _LEXER_H
 
-#include <type.h>
-#include <stdarg.h>
 #include <common.h>
+#include <stdarg.h>
+#include <token.h>
+#include <type.h>
 
-#define lexer_die(l, err, ...)   \
-  do                             \
-  {                              \
-    lexer_print(l);              \
-    die(err, __VA_ARGS__);       \
+#define LEXER_INIT_CAPACITY 10
+
+/* Prints the current token stream then calls die() with the
+   given error code and message.  Used for unrecoverable lexer
+   errors (bad character, unknown token, alloc failure). */
+#define lexer_die(l, err, ...)  \
+  do                            \
+  {                             \
+    lexer_print(l);             \
+    die(err, __VA_ARGS__);      \
   } while (0)
 
-
-#define LEXER_INIT_CAPACITY         10
-
-enum token
-{
-  token_comma,   // ','
-  token_lparen,  // '('
-  token_rparen,  // ')'
-  token_number,  // '123'
-  token_instr,   // 'ADD ... '
-  token_register,// 'X1'
-  token_section, // '.section .data' or '.org 0x10000'
-  token_label,   // '&loop' => 'loop:'
-  token_label_ref// '!loop' => 'loop'
-};
-
-struct token_data
-{
-  char *value;
-  enum token type;
-};
-
+/* ============================================================
+ *  Lexer state
+ * ============================================================ */
 
 struct lexer
 {
-  struct token_data **tokens;
-  u32 size; /* number of tokens */
-  u32 capacity;
+  struct token_data **tokens;   /* dynamic array of token pointers */
+  u32                 size;     /* number of tokens stored         */
+  u32                 capacity; /* allocated slot count            */
 };
 
+/* ============================================================
+ *  Lifecycle
+ * ============================================================ */
 
-struct lexer *lexer_compile(char *c);
-struct lexer *lexer_init(u0);
-struct token_data *lexer_peek(struct lexer *l, u32 pos);
-u0 lexer_push_token_data(struct lexer *l, struct token_data *td);
-u0 lexer_push_token_value(struct lexer *l, enum token t, char *value);
-u0 lexer_expand(struct lexer *l);
+struct lexer *lexer_compile(const char *c); /* lex a full source string  */
+struct lexer *lexer_init(u0);               /* allocate an empty lexer   */
+u0            lexer_free(struct lexer **l); /* free lexer and all tokens */
 
-struct token_data *token_data_alloc(enum token t, char *value);
+/* ============================================================
+ *  Token stream management
+ * ============================================================ */
 
+u0 lexer_push_token_data(struct lexer *l, struct token_data *td); /* append a token          */
+u0 lexer_expand(struct lexer *l);                                  /* double token capacity   */
 
-/* DEBUG STUFF */
+/* ============================================================
+ *  Debug
+ * ============================================================ */
 
-u0 token_data_print(struct token_data *td);
-u0 lexer_print(struct lexer *l);
-char *token_to_str(enum token t);
+u0 lexer_print(struct lexer *l); /* print all tokens to stdout */
 
-/* ============= */
-
-#endif
+#endif /* _LEXER_H */

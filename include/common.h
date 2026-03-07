@@ -4,8 +4,9 @@
 #include <stdarg.h>
 #include <type.h>
 
-u0 die(i32 err, const char *fmt, ...);
+#define STDDIE stderr /* stream used in die   */
 
-char *freadbuf(const char *path);
+u0 die(i32 err, const char *fmt, ...);
+char *fread_path(const char *path);
 
 #endif

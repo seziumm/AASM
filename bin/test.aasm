@@ -47,4 +47,4 @@
     SB   X5, 0(X28)
 
 &END
-    JAL X0, !END
+    JAL X0, @END

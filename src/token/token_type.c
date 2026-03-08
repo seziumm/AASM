@@ -1,5 +1,4 @@
 #include <token/token_type.h>
-#include <stdio.h>
 
 const char *token_to_str(enum token_type t)
 {

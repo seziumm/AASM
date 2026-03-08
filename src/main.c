@@ -1,4 +1,5 @@
-#include "parser.h"
+#include <codegen.h>
+#include <parser.h>
 #include <stdlib.h>
 #include <lexer.h>
 
@@ -17,12 +18,14 @@ i32 main(i32 argc, char **argv)
   lexer_print(l);
 
 
-  struct ast_node *node = parser_build(l);
-  ast_node_print(node, 0);
+  struct ast_node *root = parser_build(l);
+  struct codegen *cg = codegen_build(root);
+  codegen_print(cg);
+
 
   free(buffer);
   lexer_free(&l);
-  ast_node_free(&node);
+  ast_node_free(&root);
 
   return 0;
 }

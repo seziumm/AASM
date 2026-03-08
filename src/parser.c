@@ -138,8 +138,8 @@ static struct parser parser_init(struct lexer *l)
 {
   return (struct parser)
   {
-    .tokens = l->tokens,
-    .size   = l->size,
+    .tokens = l->table.tokens,
+    .size   = l->table.size,
     .pos    = 0,
   };
 }
@@ -287,7 +287,6 @@ static u0 parse_instr_operands(struct parser *p,
       }
       else
       {
-        /* JALR and all arithmetic immediates share the same form */
         ast_node_push(node, parse_reg(p));   skip_comma(p);
         ast_node_push(node, parse_reg(p));   skip_comma(p);
         ast_node_push(node, parse_imm(p));
@@ -327,10 +326,10 @@ static u0 parse_instr_operands(struct parser *p,
 /* ============================================================
  *  Recursive descent
  *
- *  parse_program     → parse_section_node*
- *  parse_section_node→ TOKEN_SECTION  ( parse_label_block | parse_instr_node )*
- *  parse_label_block → TOKEN_LABEL    parse_instr_node*
- *  parse_instr_node  → TOKEN_INSTR    operands
+ *  parse_program      → parse_section_node*
+ *  parse_section_node → TOKEN_SECTION TOKEN_NUMBER ( parse_label_block | parse_instr_node )*
+ *  parse_label_block  → TOKEN_LABEL   parse_instr_node*
+ *  parse_instr_node   → TOKEN_INSTR   operands
  *
  *  Each level stops as soon as it sees a token that belongs to
  *  a higher level, without consuming it (the caller owns it).
@@ -345,19 +344,17 @@ static struct ast_node *parse_instr_node(struct parser *p)
   return instr;
 }
 
-/* Parses one label and all instructions that follow it, until
-   the next TOKEN_LABEL, TOKEN_SECTION, or end of stream. */
 static struct ast_node *parse_label_block(struct parser *p)
 {
-  struct token_data *t   = parser_advance(p);         /* TOKEN_LABEL  */
-  struct ast_node   *lbl = ast_node_create_label(t->value + 1); /* skip '&'  */
+  struct token_data *t   = parser_advance(p);                  /* TOKEN_LABEL */
+  struct ast_node   *lbl = ast_node_create_label(t->value + 1); /* skip '&'   */
 
   while (!parser_at_end(p))
   {
     enum token_type tt = parser_peek(p)->type;
 
     if (tt == TOKEN_SECTION || tt == TOKEN_LABEL)
-      break;   /* belongs to caller */
+      break;
 
     if (tt == TOKEN_INSTR)
     {
@@ -373,16 +370,12 @@ static struct ast_node *parse_label_block(struct parser *p)
   return lbl;
 }
 
-/* Parses one section directive and everything it contains, until
-   the next TOKEN_SECTION or end of stream. */
 static struct ast_node *parse_section_node(struct parser *p)
 {
-  struct token_data *t    = parser_advance(p);   /* TOKEN_SECTION */
-  u32                addr = 0;
-  (u0)t;
+  parser_advance(p);   /* TOKEN_SECTION — name discarded, only addr matters */
 
-  struct token_data *num = parser_expect(p, TOKEN_NUMBER);
-  addr = (u32)atoi(num->value); /* a number is mandatory */
+  struct token_data *num  = parser_expect(p, TOKEN_NUMBER);
+  u32                addr = (u32)atoi(num->value);
 
   struct ast_node *sec = ast_node_create_section(addr);
 
@@ -391,7 +384,7 @@ static struct ast_node *parse_section_node(struct parser *p)
     enum token_type tt = parser_peek(p)->type;
 
     if (tt == TOKEN_SECTION)
-      break;   /* belongs to caller */
+      break;
 
     if (tt == TOKEN_LABEL)
     {
@@ -401,7 +394,6 @@ static struct ast_node *parse_section_node(struct parser *p)
 
     if (tt == TOKEN_INSTR)
     {
-      /* instructions before any label live directly under the section */
       ast_node_push(sec, parse_instr_node(p));
       continue;
     }
@@ -435,7 +427,6 @@ struct ast_node *parser_build(struct lexer *l)
       continue;
     }
 
-    /* anything outside a section is a hard error */
     parser_die(NULL, 1,
       "parser_build: token %s (\"%s\") found outside any section",
       token_to_str(tt), parser_peek(&p)->value);
@@ -463,6 +454,7 @@ static const char *ast_node_type_str(enum ast_node_type t)
   return "";
 }
 
+/* Be aware that & and @ are added here — they are not stored in the AST. */
 u0 ast_node_print(struct ast_node *n, u32 depth)
 {
   if (NULL == n) return;

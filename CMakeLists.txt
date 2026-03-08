@@ -32,7 +32,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 # ------------------------------------------------------------------------------
 #  Search for top-level source files (e.g., src/main.c)
 # ------------------------------------------------------------------------------
-file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.c)
+file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.c)
 
 # ------------------------------------------------------------------------------
 #  Create the main executable

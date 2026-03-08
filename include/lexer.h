@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <stdarg.h>
-#include <token.h>
+#include <token/token_data_table.h>
 #include <type.h>
 
 #define LEXER_INIT_CAPACITY     4
@@ -24,9 +24,7 @@
 
 struct lexer
 {
-  struct token_data **tokens;   /* dynamic array of token pointers */
-  u32                 size;     /* number of tokens stored         */
-  u32                 capacity; /* allocated slot count            */
+  struct token_data_table table;
 };
 
 /* ============================================================

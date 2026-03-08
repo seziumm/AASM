@@ -2,7 +2,6 @@
 #define _PARSER_H
 
 #include <rv32/rv32_instr.h>
-#include <rv32/rv32_reg.h>
 #include <lexer.h>
 #include <common.h>
 
@@ -43,7 +42,7 @@ struct ast_node
   union
   {
     struct { enum rv32i_instr instr;     } as_instr;
-    struct { const char *name; u32 addr; } as_label;
+    struct { const char *name;           } as_label;
     struct { const char *name;           } as_label_ref;
     struct { u32 addr;                   } as_section;
     struct { u8  reg;                    } as_reg;

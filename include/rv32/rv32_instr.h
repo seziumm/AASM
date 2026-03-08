@@ -361,6 +361,12 @@ rv32ii_instr_from_label(const char *label)
   return NULL;
 }
 
+static i32 rv32ii_is_load(enum rv32i_instr idx)
+{
+  return idx == RV32I_LB  || idx == RV32I_LH  || idx == RV32I_LW
+      || idx == RV32I_LBU || idx == RV32I_LHU;
+}
+
 static inline i32 rv32ii_is_instr(const char *name)
 {
   return rv32ii_instr_from_label(name) != NULL;

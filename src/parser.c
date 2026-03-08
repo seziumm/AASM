@@ -1,6 +1,7 @@
 #include <parser.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <rv32/rv32_reg.h>
 
 /* ============================================================
  *  Lifecycle
@@ -91,7 +92,6 @@ struct ast_node *ast_node_create_label(const char *name)
 {
   struct ast_node *n = ast_node_create(AST_LABEL);
   n->as_label.name   = name;
-  n->as_label.addr   = 0;
   return n;
 }
 
@@ -241,12 +241,6 @@ static u0 parse_mem(struct parser *p, struct ast_node *instr)
  *  ECALL / EBREAK : no operands
  * ============================================================ */
 
-static i32 is_load(enum rv32i_instr idx)
-{
-  return idx == RV32I_LB  || idx == RV32I_LH  || idx == RV32I_LW
-      || idx == RV32I_LBU || idx == RV32I_LHU;
-}
-
 static i32 next_is_label_ref(struct parser *p)
 {
   u32 look = p->pos;
@@ -268,7 +262,9 @@ static u0 parse_instr_operands(struct parser *p,
   const struct rv32ii_opcode_entry *e = rv32ii_instr_from_enum(idx);
 
   if (idx == RV32I_ECALL || idx == RV32I_EBREAK)
+  {
     return;
+  }
 
   switch (e->type)
   {
@@ -279,7 +275,7 @@ static u0 parse_instr_operands(struct parser *p,
       break;
 
     case I_TYPE:
-      if (is_load(idx))
+      if (rv32ii_is_load(idx))
       {
         ast_node_push(node, parse_reg(p));
         skip_comma(p);

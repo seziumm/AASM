@@ -19,8 +19,10 @@ i32 main(i32 argc, char **argv)
 
 
   struct ast_node *root = parser_build(l);
-  struct codegen *cg = codegen_build(root);
-  codegen_print(cg);
+  ast_node_print(root, 0);
+
+  codegen_compile(root);
+  // codegen_print(cg);
 
 
   free(buffer);

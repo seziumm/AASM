@@ -435,7 +435,7 @@ struct ast_node *parser_build(struct lexer *l)
  *  Debug
  * ============================================================ */
 
-static const char *ast_node_type_str(enum ast_node_type t)
+const char *ast_node_type_str(enum ast_node_type t)
 {
   switch (t)
   {

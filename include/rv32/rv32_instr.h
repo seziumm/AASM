@@ -247,6 +247,7 @@ static inline u32 rv32_encode(const struct rv32ii_opcode_entry *e,
                                u8 rd, u8 rs1, u8 rs2, i32 imm)
 {
   union rv32_enc w = { .raw = e->raw };
+  u32 u = (u32)imm;
 
   switch (e->type)
   {
@@ -262,16 +263,22 @@ static inline u32 rv32_encode(const struct rv32ii_opcode_entry *e,
       w.i.imm = imm;
       break;
 
+    /* S-type: imm is split [11:5] at bits[31:25] and [4:0] at bits[11:7]  */
     case S_TYPE:
-      w.s.rs1 = rs1;
-      w.s.rs2 = rs2;
-      w.s.imm = imm;
+      w.raw |= ((u & 0xFE0u) << 20);   /* imm[11:5] → bits[31:25] */
+      w.raw |= ((u & 0x01Fu) <<  7);   /* imm[4:0]  → bits[11:7]  */
+      w.raw |= ((u32)rs1 << 15);
+      w.raw |= ((u32)rs2 << 20);
       break;
 
+    /* B-type: imm is split [12|10:5] at bits[31:25] and [4:1|11] at bits[11:7] */
     case B_TYPE:
-      w.b.rs1 = rs1;
-      w.b.rs2 = rs2;
-      w.b.imm = imm;
+      w.raw |= (((u >> 12) & 0x1u)  << 31);  /* imm[12]   → bit[31]     */
+      w.raw |= (((u >>  5) & 0x3Fu) << 25);  /* imm[10:5] → bits[30:25] */
+      w.raw |= (((u >>  1) & 0xFu)  <<  8);  /* imm[4:1]  → bits[11:8]  */
+      w.raw |= (((u >> 11) & 0x1u)  <<  7);  /* imm[11]   → bit[7]      */
+      w.raw |= ((u32)rs1 << 15);
+      w.raw |= ((u32)rs2 << 20);
       break;
 
     case U_TYPE:
@@ -279,9 +286,13 @@ static inline u32 rv32_encode(const struct rv32ii_opcode_entry *e,
       w.u.imm = imm;
       break;
 
+    /* J-type: imm is split [20|10:1|11|19:12] */
     case J_TYPE:
-      w.j.rd  = rd;
-      w.j.imm = imm;
+      w.raw |= (((u >> 20) & 0x1u)  << 31);  /* imm[20]   → bit[31]     */
+      w.raw |= (((u >>  1) & 0x3FFu)<< 21);  /* imm[10:1] → bits[30:21] */
+      w.raw |= (((u >> 11) & 0x1u)  << 20);  /* imm[11]   → bit[20]     */
+      w.raw |= (((u >> 12) & 0xFFu) << 12);  /* imm[19:12]→ bits[19:12] */
+      w.raw |= ((u32)rd << 7);
       break;
   }
 
@@ -361,15 +372,15 @@ rv32ii_instr_from_label(const char *label)
   return NULL;
 }
 
-static i32 rv32ii_is_load(enum rv32i_instr idx)
-{
-  return idx == RV32I_LB  || idx == RV32I_LH  || idx == RV32I_LW
-      || idx == RV32I_LBU || idx == RV32I_LHU;
-}
-
 static inline i32 rv32ii_is_instr(const char *name)
 {
   return rv32ii_instr_from_label(name) != NULL;
+}
+
+static inline i32 rv32ii_is_load(enum rv32i_instr idx)
+{
+  return idx == RV32I_LB  || idx == RV32I_LH  || idx == RV32I_LW
+      || idx == RV32I_LBU || idx == RV32I_LHU;
 }
 
 #endif /* _RV32_INSTR_H */

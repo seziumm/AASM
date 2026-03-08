@@ -5,10 +5,9 @@
 #include <common.h>
 #include <type.h>
 
-#define CODEGEN_PC_INIT_ADDR       0x80000000
+#define CODEGEN_PC_INIT_ADDR  0x80000000u
+#define CODEGEN_RV32_NOP      0x00000013u  /* ADDI X0, X0, 0 */
 
-/* Prints codegen state then calls die().
-   Used for unrecoverable codegen errors. */
 #define codegen_die(cg, err, ...)  \
   do                               \
   {                                \
@@ -16,7 +15,10 @@
     die(err, __VA_ARGS__);         \
   } while (0)
 
-u0 codegen_compile(struct ast_node *root);
+/* ============================================================
+ *  Entry point
+ * ============================================================ */
 
+u0 codegen_compile(struct ast_node *root, const char *out_path);
 
-#endif
+#endif /* _CODEGEN_H */

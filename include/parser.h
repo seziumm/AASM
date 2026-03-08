@@ -90,5 +90,6 @@ struct ast_node *parser_build(struct lexer *l);
  * ============================================================ */
 
 u0 ast_node_print(struct ast_node *n, u32 depth);
+const char *ast_node_type_str(enum ast_node_type t);
 
 #endif /* _PARSER_H */

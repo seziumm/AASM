@@ -3,196 +3,264 @@
 #include <rv32/rv32_instr.h>
 #include <parser.h>
 #include <codegen.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 /* ============================================================
- *  Lifecycle
+ *  Local symbol table  (visible only in this translation unit)
  * ============================================================ */
 
-static inline u0 codegen_expect_node_type(struct ast_node *node, enum ast_node_type t)
+#define SYM_INIT_CAPACITY 8
+
+struct sym { const char *name; u32 addr; };
+
+static struct sym *sym_table   = NULL;
+static u32         sym_size     = 0;
+static u32         sym_capacity = 0;
+
+static u0 sym_init(u0)
 {
-    if(node->type != t)
-    {
-        codegen_die(NULL, 1,"Expected %s but found %s", "", ""); 
-    }
+  sym_table    = malloc(SYM_INIT_CAPACITY * sizeof(struct sym));
+  sym_size     = 0;
+  sym_capacity = SYM_INIT_CAPACITY;
 }
 
-static inline u8 codegen_expect_reg(struct ast_node *node)
+static u0 sym_free(u0)
 {
-    codegen_expect_node_type(node, AST_REG); 
-    return node->as_reg.reg;
+  free(sym_table);
+  sym_table    = NULL;
+  sym_size     = 0;
+  sym_capacity = 0;
 }
 
-static inline i32 codegen_expect_imm(struct ast_node *node)
+static u0 sym_push(const char *name, u32 addr)
 {
-    codegen_expect_node_type(node, AST_IMM); 
+  if (sym_size >= sym_capacity)
+  {
+    sym_capacity *= 2;
+    sym_table = realloc(sym_table, sym_capacity * sizeof(struct sym));
+  }
+
+  sym_table[sym_size++] = (struct sym){ name, addr };
+}
+
+/* Returns address or crashes if not found. */
+static u32 sym_expect(const char *name, u32 pc)
+{
+  for (u32 i = 0; i < sym_size; i++)
+    if (strcmp(sym_table[i].name, name) == 0)
+      return sym_table[i].addr;
+
+  die(1, "sym_expect: undefined label @%s at pc=0x%08X", name, pc);
+  return 0; /* unreachable */
+}
+
+/* ============================================================
+ *  Node type guards
+ * ============================================================ */
+
+static inline u0 expect_type(struct ast_node *node, enum ast_node_type t)
+{
+  if (node->type != t)
+    die(1, "expect_type: expected %s but found %s",
+      ast_node_type_str(t), ast_node_type_str(node->type));
+}
+
+static inline u8  expect_reg(struct ast_node *node)
+{
+  expect_type(node, AST_REG);
+  return node->as_reg.reg;
+}
+
+static inline i32 expect_imm(struct ast_node *node)
+{
+  expect_type(node, AST_IMM);
+  return node->as_imm.value;
+}
+
+static inline i32 expect_imm_or_ref(struct ast_node *node, u32 pc)
+{
+  if (node->type == AST_IMM)
     return node->as_imm.value;
+
+  if (node->type == AST_LABEL_REF)
+  {
+    u32 addr = sym_expect(node->as_label_ref.name, pc);
+    return (i32)(addr - pc);
+  }
+
+  die(1, "expect_imm_or_ref: expected AST_IMM or AST_LABEL_REF but found %s",
+    ast_node_type_str(node->type));
+  return 0; /* unreachable */
 }
 
-u0 codegen_build_label(struct ast_node *node, u32 *pc)
+/* ============================================================
+ *  Emit  —  write one little-endian u32 to output file
+ * ============================================================ */
+
+#define emit(word, out) fwrite(&(u32){(word)}, 4, 1, (out))
+
+/* ============================================================
+ *  Forward declaration
+ * ============================================================ */
+
+static u0 build_instr(struct ast_node *node, u32 *pc, FILE *out);
+
+/* ============================================================
+ *  Instruction encoding
+ * ============================================================ */
+
+static u0 build_instr(struct ast_node *node, u32 *pc, FILE *out)
 {
-    codegen_expect_node_type(node, AST_LABEL);
+  expect_type(node, AST_INSTR);
 
+  enum rv32i_instr                  t = node->as_instr.instr;
+  const struct rv32ii_opcode_entry *e = rv32ii_instr_from_enum(t);
+
+  u8  rd  = 0;
+  u8  rs1 = 0;
+  u8  rs2 = 0;
+  i32 imm = 0;
+
+  if (t == RV32I_ECALL || t == RV32I_EBREAK)
+  {
+    emit(rv32_encode(e, 0, 0, 0, 0), out);
     *pc += 4;
-
-    // TODO add label to the current hast_label
-
-}
-
-
-u0 codegen_build_instr(struct ast_node *node, u32 *pc)
-{
-    codegen_expect_node_type(node, AST_INSTR);
-
-    *pc += 4;
-    
-    enum rv32i_instr t = node->as_instr.instr;
-    const struct rv32ii_opcode_entry *e = rv32ii_instr_from_enum(t);
-
-    u32 params = params_of_instr(e->type);
-
-    u8 rd   = 0;
-    u8 rs1  = 0;
-    u8 rs2  = 0;
-    i32 imm = 0;
-
-    if (t == RV32I_ECALL || t == RV32I_EBREAK)
-    {
-        return;
-    }
-
+    return;
+  }
 
   switch (e->type)
   {
     case R_TYPE:
-        {
-            if(node->children_size != params)
-            {
-                codegen_die(NULL, 1, "ERROR R_TYPE HAS A DIFFERENT TYPE OF PARAMS");
-            }
-
-            rd  = codegen_expect_reg(node->children[0]);
-            rs1 = codegen_expect_reg(node->children[1]);
-            rs2 = codegen_expect_reg(node->children[2]);
-            break;
-        }
+      rd  = expect_reg(node->children[0]);
+      rs1 = expect_reg(node->children[1]);
+      rs2 = expect_reg(node->children[2]);
+      break;
 
     case I_TYPE:
-        {
-            if (rv32ii_is_load(t))
-            {
-                ast_node_push(node, parse_reg(p));
-                parse_mem(p, node); // this is as the imm, reg
-            }
-            else
-            {
-                ast_node_push(node, parse_reg(p));
-                ast_node_push(node, parse_reg(p));
-                ast_node_push(node, parse_imm(p));
-            }
-            break;
-
-        }
+      rd  = expect_reg(node->children[0]);
+      rs1 = expect_reg(node->children[1]);
+      imm = expect_imm(node->children[2]);
+      break;
 
     case S_TYPE:
-      ast_node_push(node, parse_reg(p));
-      parse_mem(p, node);
+      /* children: rs2 , imm , rs1  (parse_mem pushes imm then rs1) */
+      rs2 = expect_reg(node->children[0]);
+      imm = expect_imm(node->children[1]);
+      rs1 = expect_reg(node->children[2]);
       break;
 
     case B_TYPE:
-      ast_node_push(node, parse_reg(p));
-      ast_node_push(node, parse_reg(p));
-
-      if (next_is_label_ref(p))
-        ast_node_push(node, parse_label_ref(p));
-      else
-        ast_node_push(node, parse_imm(p));
+      rs1 = expect_reg(node->children[0]);
+      rs2 = expect_reg(node->children[1]);
+      imm = expect_imm_or_ref(node->children[2], *pc);
       break;
 
     case U_TYPE:
-      ast_node_push(node, parse_reg(p));
-      ast_node_push(node, parse_imm(p));
+      rd  = expect_reg(node->children[0]);
+      imm = expect_imm(node->children[1]);
       break;
 
     case J_TYPE:
-      ast_node_push(node, parse_reg(p));
-      if (next_is_label_ref(p))
-        ast_node_push(node, parse_label_ref(p));
-      else
-        ast_node_push(node, parse_imm(p));
+      rd  = expect_reg(node->children[0]);
+      imm = expect_imm_or_ref(node->children[1], *pc);
       break;
   }
 
-    rv32_encode(instr, rd, rs1, rs2, imm);
-
+  emit(rv32_encode(e, rd, rs1, rs2, imm), out);
+  *pc += 4;
 }
 
-static u0 codegen_fill_pc(u32 *pc, u32 pc_target)
+/* ============================================================
+ *  Label  —  register addr then encode children
+ * ============================================================ */
+
+static u0 build_label(struct ast_node *node, u32 *pc, FILE *out)
 {
-    if(pc_target < *pc)
-    {
-        codegen_die(NULL, 1, "PC TARGET %d IS SMALLER THAN CURRENT PC %d", pc_target , *pc);
-    }
+  expect_type(node, AST_LABEL);
 
-    while(*pc < pc_target)
-    {
-        printf("0x00000000 %u\tTARGET %u\n", *pc, pc_target);
-        (*pc) += 4;
-    }
+  sym_push(node->as_label.name, *pc);
 
+  for (u32 i = 0; i < node->children_size; i++)
+    build_instr(node->children[i], pc, out);
 }
 
-u0 codegen_build_section(struct ast_node *node, u32 *pc)
+/* ============================================================
+ *  PC fill  —  emit NOPs until pc reaches target
+ * ============================================================ */
+
+static u0 fill_pc(u32 *pc, u32 target, FILE *out)
 {
-    codegen_expect_node_type(node, AST_SECTION);
+  if (target < *pc)
+    die(1, "fill_pc: target 0x%08X is behind current pc 0x%08X", target, *pc);
 
-    codegen_fill_pc(pc, node->as_section.addr);
-
-    for(u32 i = 0; i < node->children_size; i++)
-    {
-        struct ast_node *child = node->children[i];
-
-        if(child->type == AST_LABEL)
-        {
-            codegen_build_label(child, pc);
-        }
-        else if(child->type == AST_INSTR)
-        {
-            codegen_build_instr(child, pc);
-        }
-
-        codegen_die(NULL, 1, "EXPECTED AST_LABEL OR AST_INSTR BUT FOUND OTHER");
-    }
-}
-
-
-u0 codegen_build_program(struct ast_node *node, u32 *pc)
-{
-    codegen_expect_node_type(node, AST_PROGRAM);
-
-    for(u32 i = 0; i < node->children_size; i++)
-    {
-        struct ast_node *child = node->children[i];
-        if(child->type == AST_SECTION)
-        {
-            codegen_build_section(child, pc);
-        }
-
-        codegen_die(NULL, 1, "EXPECTED AST_SECTION BUT FOUND" );
-    }
-}
-
-
-u0 codegen_compile(struct ast_node *root)
-{
-  if(NULL == root) 
+  while (*pc < target)
   {
-    codegen_die(NULL, 1, "codegen_build() failed because root is NULL");
+    emit(CODEGEN_RV32_NOP, out);
+    *pc += 4;
   }
+}
+
+/* ============================================================
+ *  Section  —  seek to addr, encode children
+ * ============================================================ */
+
+static u0 build_section(struct ast_node *node, u32 *pc, FILE *out)
+{
+  expect_type(node, AST_SECTION);
+
+  fill_pc(pc, node->as_section.addr, out);
+
+  for (u32 i = 0; i < node->children_size; i++)
+  {
+    struct ast_node *child = node->children[i];
+
+    if (child->type == AST_LABEL) { build_label(child, pc, out); continue; }
+    if (child->type == AST_INSTR) { build_instr(child, pc, out); continue; }
+
+    die(1, "build_section: expected AST_LABEL or AST_INSTR but found %s",
+      ast_node_type_str(child->type));
+  }
+}
+
+/* ============================================================
+ *  Program  —  iterate sections
+ * ============================================================ */
+
+static u0 build_program(struct ast_node *node, u32 *pc, FILE *out)
+{
+  expect_type(node, AST_PROGRAM);
+
+  for (u32 i = 0; i < node->children_size; i++)
+  {
+    struct ast_node *child = node->children[i];
+
+    if (child->type == AST_SECTION) { build_section(child, pc, out); continue; }
+
+    die(1, "build_program: expected AST_SECTION but found %s",
+      ast_node_type_str(child->type));
+  }
+}
+
+/* ============================================================
+ *  Entry point
+ * ============================================================ */
+
+u0 codegen_compile(struct ast_node *root, const char *out_path)
+{
+  if (NULL == root)
+    die(1, "codegen_compile: root is NULL");
+
+  FILE *out = fopen(out_path, "wb");
+  if (NULL == out)
+    die(1, "codegen_compile: cannot open '%s'", out_path);
+
+  sym_init();
 
   u32 pc = CODEGEN_PC_INIT_ADDR;
-  printf("%u\n", pc);
+  build_program(root, &pc, out);
 
-  codegen_build_program(root, &pc);
+  sym_free();
+  fclose(out);
 }
-

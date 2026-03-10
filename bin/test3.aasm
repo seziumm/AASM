@@ -1,0 +1,57 @@
+.ADDR 2147483648
+
+# ============================================================
+#  Register map:
+#    X28 = UART base (0x10000000)
+#    X6   = counter (1..20)
+#    X9   = valore da stampare (passato a PRINTNUM)
+#    X10  = decine
+#    X11  = scratch
+#    X5   = byte da scrivere su UART
+#    X1   = return address
+# ============================================================
+
+&MAIN
+    LUI  X28, 65536          # X28 = 0x10000000 (UART base)
+    ADDI X6,  X0, 1          # counter = 1
+
+&LOOP
+    # stampa il numero corrente
+    ADDI X9,  X6, 0
+    JAL  X1,  @PRINTNUM
+
+    # stampa newline
+    ADDI X5,  X0, 10
+    SB   X5,  0(X28)
+
+    # counter++ ; se counter < 21 ripeti
+    ADDI X6,  X6, 1
+    ADDI X11, X0, 21
+    BLT  X6,  X11, @LOOP
+
+&END
+    JAL  X0,  @END           # halt
+
+# ============================================================
+#  PRINTNUM  —  stampa X9 come decimale (1..20)
+#  Return address in X1. Usa X10, X11, X5.
+# ============================================================
+&PRINTNUM
+    ADDI X10, X0, 0          # decine = 0
+
+&PNTEN
+    ADDI X11, X0, 10
+    BLT  X9,  X11, @PNUNITS  # se X9 < 10 vai alle unita
+    ADDI X9,  X9,  -10       # X9 -= 10
+    ADDI X10, X10, 1         # decine++
+    JAL  X0,  @PNTEN
+
+&PNUNITS
+    BEQ  X10, X0,  @PNSKIP   # salta lo zero iniziale
+    ADDI X5,  X10, 48        # '0' + decine
+    SB   X5,  0(X28)
+
+&PNSKIP
+    ADDI X5,  X9,  48        # '0' + unita
+    SB   X5,  0(X28)
+    JALR X0,  X1,  0         # return

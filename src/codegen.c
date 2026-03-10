@@ -36,6 +36,10 @@ static u0 sym_free(u0)
 
 static u0 sym_push(const char *name, u32 addr)
 {
+  /* Ignore re-registration of the same label (pass 2 calling build_label) */
+  for (u32 i = 0; i < sym_size; i++)
+    if (strcmp(sym_table[i].name, name) == 0) return;
+
   if (sym_size >= sym_capacity)
   {
     sym_capacity *= 2;
@@ -244,6 +248,50 @@ static u0 build_program(struct ast_node *node, u32 *pc, FILE *out)
 }
 
 /* ============================================================
+ *  Pass 1  —  collect all label addresses (no output)
+ * ============================================================ */
+
+static u0 collect_labels_section(struct ast_node *node, u32 *pc)
+{
+  expect_type(node, AST_SECTION);
+
+  if (node->as_section.addr < *pc)
+    die(1, "collect_labels: section 0x%08X is behind pc 0x%08X",
+        node->as_section.addr, *pc);
+
+  /* Jump pc to section base (mirrors fill_pc without emitting) */
+  *pc = node->as_section.addr;
+
+  for (u32 i = 0; i < node->children_size; i++)
+  {
+    struct ast_node *child = node->children[i];
+
+    if (child->type == AST_LABEL)
+    {
+      sym_push(child->as_label.name, *pc);
+      /* Each instruction nested under this label is 4 bytes */
+      *pc += 4 * child->children_size;
+      continue;
+    }
+
+    if (child->type == AST_INSTR) { *pc += 4; continue; }
+
+    die(1, "collect_labels: unexpected node %s",
+        ast_node_type_str(child->type));
+  }
+}
+
+static u0 collect_labels(struct ast_node *root)
+{
+  expect_type(root, AST_PROGRAM);
+
+  u32 pc = CODEGEN_PC_INIT_ADDR;
+
+  for (u32 i = 0; i < root->children_size; i++)
+    collect_labels_section(root->children[i], &pc);
+}
+
+/* ============================================================
  *  Entry point
  * ============================================================ */
 
@@ -258,6 +306,10 @@ u0 codegen_compile(struct ast_node *root, const char *out_path)
 
   sym_init();
 
+  /* Pass 1: populate symbol table before any encoding (resolves forward refs) */
+  collect_labels(root);
+
+  /* Pass 2: encode instructions (all labels now known) */
   u32 pc = CODEGEN_PC_INIT_ADDR;
   build_program(root, &pc, out);
 

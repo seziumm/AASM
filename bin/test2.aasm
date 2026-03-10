@@ -1,0 +1,94 @@
+.ADDR 2147483648
+
+# ============================================================
+#  Register map:
+#    X28 = UART base (0x10000000)
+#    X6   = outer loop counter  (i, 1..20)
+#    X7   = inner loop counter  (j, 1..20)
+#    X8   = sum  (i + j)
+#    X9   = scratch / dividend for print
+#    X10  = scratch / tens digit
+#    X11  = scratch / compare
+#    X5   = byte to write to UART
+# ============================================================
+
+.ADDR 2147483648
+
+&MAIN
+    LUI  X28, 65536          # X28 = 0x10000000  (UART base)
+    ADDI X6,  X0, 1          # i = 1
+
+&OUTERLOOP
+    ADDI X7,  X0, 1          # j = 1
+
+&INNERLOOP
+    ADD  X8,  X6, X7         # sum = i + j
+
+    # ---- print i ----
+    ADDI X9,  X6, 0
+    JAL  X1,  @PRINTNUM
+
+    # ---- print " + " ----
+    ADDI X5,  X0, 32
+    SB   X5,  0(X28)
+    ADDI X5,  X0, 43         # '+'
+    SB   X5,  0(X28)
+    ADDI X5,  X0, 32
+    SB   X5,  0(X28)
+
+    # ---- print j ----
+    ADDI X9,  X7, 0
+    JAL  X1,  @PRINTNUM
+
+    # ---- print " = " ----
+    ADDI X5,  X0, 32
+    SB   X5,  0(X28)
+    ADDI X5,  X0, 61         # '='
+    SB   X5,  0(X28)
+    ADDI X5,  X0, 32
+    SB   X5,  0(X28)
+
+    # ---- print sum ----
+    ADDI X9,  X8, 0
+    JAL  X1,  @PRINTNUM
+
+    # ---- print newline ----
+    ADDI X5,  X0, 10
+    SB   X5,  0(X28)
+
+    # ---- j++ ; if j < 21 loop ----
+    ADDI X7,  X7, 1
+    ADDI X10, X0, 21
+    BLT  X7,  X10, @INNERLOOP
+
+    # ---- i++ ; if i < 21 loop ----
+    ADDI X6,  X6, 1
+    ADDI X10, X0, 21
+    BLT  X6,  X10, @OUTERLOOP
+
+&END
+    JAL  X0,  @END           # halt
+
+# ============================================================
+#  PRINTNUM  —  print X9 as decimal (handles 1..40)
+#  Return address in X1. Uses X10, X11, X5.
+# ============================================================
+&PRINTNUM
+    ADDI X10, X0, 0          # tens = 0
+
+&PNTEN
+    ADDI X11, X0, 10
+    BLT  X9,  X11, @PNUNITS  # if X9 < 10 -> done counting tens
+    ADDI X9,  X9,  -10       # X9 -= 10
+    ADDI X10, X10, 1         # tens++
+    JAL  X0,  @PNTEN
+
+&PNUNITS
+    BEQ  X10, X0,  @PNSKIP   # skip leading zero
+    ADDI X5,  X10, 48        # '0' + tens
+    SB   X5,  0(X28)
+
+&PNSKIP
+    ADDI X5,  X9,  48        # '0' + units
+    SB   X5,  0(X28)
+    JALR X0,  X1,  0         # return

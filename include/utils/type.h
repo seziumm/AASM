@@ -1,3 +1,4 @@
+/* type.h */
 #ifndef _TYPE_H
 #define _TYPE_H
 
@@ -19,4 +20,4 @@ typedef float    f32;
 typedef double   f64;
 
 
-#endif
+#endif /* _TYPE_H */

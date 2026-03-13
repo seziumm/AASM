@@ -1,66 +1,43 @@
-#include <common.h>
+/* common.c */
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <utils/common.h>
+#include <utils/aalloc.h>
 
-u0 die(i32 err, const char *fmt, ...) 
-{
-    va_list args;
-    va_start(args, fmt); 
-    vfprintf(STDDIE, fmt, args);
-    va_end(args);
-    fprintf(STDDIE, "\n");
-
-    fflush(STDDIE);
-
-    exit(err);
-}
-
-char *fread_path(const char *path) 
+char *fread_path(const char *path)
 {
   FILE *f = fopen(path, "rb");
 
-  if(NULL == f) 
-  {
-    die(1, "A fopen(%s) error occurred", path);
-  }
+  if (unlikely(NULL == f))
+    die(1, "fread_path: fopen(%s) failed", path);
 
-  if(fseek(f, 0, SEEK_END) != 0) 
+  if (unlikely(0 != fseek(f, 0, SEEK_END)))
   {
     fclose(f);
-    die(1, "A fseek() error occurred");
+    die(1, "fread_path: fseek() failed");
   }
 
-  i32 size = ftell(f);
-  if(size < 0) 
+  long size = ftell(f);
+  if (unlikely(size < 0))
   {
     fclose(f);
-    die(1, "A ftell() error occurred");
+    die(1, "fread_path: ftell() failed");
   }
 
   rewind(f);
 
-  char *buffer = malloc(size);
+  char *buffer = a_malloc((size_t)size + 1);
 
-  if(NULL == buffer) 
+  size_t read_bytes = fread(buffer, 1, (size_t)size, f);
+  if (unlikely(read_bytes != (size_t)size))
   {
+    a_free(buffer);
     fclose(f);
-    die(1, "A malloc() error occurred");
+    die(1, "fread_path: fread() failed (got %zu, expected %ld)", read_bytes, size);
   }
 
-  i32 read_bytes = fread(buffer, 1, size, f);
-
-  if(read_bytes != size) 
-  {
-    free(buffer);
-    fclose(f);
-    die(1, "A fread() error occurred");
-  }
-
+  buffer[size] = '\0';
   fclose(f);
-
   return buffer;
 }
-
-
-
-

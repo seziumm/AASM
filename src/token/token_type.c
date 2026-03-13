@@ -1,6 +1,7 @@
 #include <token/token_type.h>
+#include <utils/common.h>
 
-const char *token_to_str(enum token_type t)
+const char *token_type_to_str(enum token_type t)
 {
   switch (t)
   {
@@ -12,8 +13,7 @@ const char *token_to_str(enum token_type t)
     case TOKEN_NUMBER:    return "TOKEN_NUMBER";
     case TOKEN_REGISTER:  return "TOKEN_REG";
     case TOKEN_RPAREN:    return "TOKEN_RPAREN";
-    case TOKEN_SECTION:   return "TOKEN_SECT";
+    case TOKEN_DIRECTIVE: return "TOKEN_DIRECTIVE";
   }
-
   return "";
 }

@@ -1,21 +1,15 @@
-#include <codegen.h>
-#include <parser.h>
-#include <lexer.h>
-#include <stdlib.h>
+#include <utils/common.h>
+#include <utils/aalloc.h>
 
 i32 main(i32 argc, char **argv)
 {
   if (argc != 3)
+  {
     die(1, "Usage: ./%s <input.aasm> <out.bin>\n", argv[0]);
+  }
 
-  char            *buffer = fread_path(argv[1]);
-  struct lexer    *l      = lexer_compile(buffer);
-  struct ast_node *root   = parser_build(l);
+  char *buffer = fread_path(argv[1]);
 
-  codegen_compile(root, argv[2]);
-
-  free(buffer);
-  lexer_free(&l);
-  ast_node_free(&root);
+  a_free(buffer);
   return 0;
 }

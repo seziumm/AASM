@@ -14,6 +14,6 @@ struct lexer
 struct lexer *lexer_compile(const char *c); /* lex a full source string  */
 u0            lexer_free(struct lexer **l); /* free lexer and all tokens */
 
-u0 lexer_print(struct lexer *l); /* print all tokens to stdout */
+u0            lexer_print(struct lexer *l); /* print all tokens to stdout */
 
 #endif

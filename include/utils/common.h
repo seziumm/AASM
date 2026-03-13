@@ -2,10 +2,13 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <utils/type.h>
+
+#define expect(expr) assert((expr))
 
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)

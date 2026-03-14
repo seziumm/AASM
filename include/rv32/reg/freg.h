@@ -28,7 +28,7 @@ static const struct reg freg_table[] =
 
 #define FREG_TABLE_SIZE (sizeof(freg_table) / sizeof(freg_table[0]))
 
-const struct reg* freg_look_up(const char *name)
+static inline const struct reg* freg_look_up(const char *name)
 {
   for(u32 i = 0; i < FREG_TABLE_SIZE; ++i)
   {

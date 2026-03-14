@@ -9,6 +9,7 @@
 
 struct instr
 {
+  // enum instr_id id; /* TODO  add parameter instr_id and implement enum of instr_id. */
   const char   *label;
   enum fmt_type type;
   union

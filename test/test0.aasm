@@ -1,51 +1,27 @@
-.ADDR 2147483648
+.BYTE 4
+.BYTE 4
+.BYTE 4
+.BYTE 4
+.BYTE 4
+.CODE
+.BYTE 4
+.BYTE 4
 
 &MAIN
-    # UART ADDRESS 268435456
-    LUI  X28, 65536     # T3 = base UART
+    # X1 = contatore (1..10)
+    # X2 = somma accumulata
+    # X3 = limite (10)
 
-    # 'H' = 72
-    ADDI X5, X0, 72
-    SB   X5, 0(X28)
-    # 'e' = 101
-    ADDI X5, X0, 101
-    SB   X5, 0(X28)
-    # 'l' = 108
-    ADDI X5, X0, 108
-    SB   X5, 0(X28)
-    # 'l' = 108
-    ADDI X5, X0, 108
-    SB   X5, 0(X28)
-    # 'o' = 111
-    ADDI X5, X0, 111
-    SB   X5, 0(X28)
-    # ',' = 44
-    ADDI X5, X0, 44
-    SB   X5, 0(X28)
-    # ' ' = 32
-    ADDI X5, X0, 32
-    SB   X5, 0(X28)
-    # 'W' = 87
-    ADDI X5, X0, 87
-    SB   X5, 0(X28)
-    # 'o' = 111
-    ADDI X5, X0, 111
-    SB   X5, 0(X28)
-    # 'r' = 114
-    ADDI X5, X0, 114
-    SB   X5, 0(X28)
-    # 'l' = 108
-    ADDI X5, X0, 108
-    SB   X5, 0(X28)
-    # 'd' = 100
-    ADDI X5, X0, 100
-    SB   X5, 0(X28)
-    # '!' = 33
-    ADDI X5, X0, 33
-    SB   X5, 0(X28)
-    # NEWLINE = 10
-    ADDI X5, X0, 10
-    SB   X5, 0(X28)
+    ADDI X1, X0, 1       # I-type: contatore = 1
+    ADDI X2, X0, 0       # I-type: somma = 0
+    ADDI X3, X0, 10      # I-type: limite = 10
 
-&END
-    JAL X0, @END
+&LOOP
+    ADD  X2, X2, X1      # R-type: somma += contatore
+    ADDI X1, X1, 1       # I-type: contatore++
+    # non possiamo fare branch (B-type) ne jump (J-type)
+    # quindi il loop e' impossibile con sole I/R-type
+
+.BYTE 4
+.DATA
+.BYTE 4

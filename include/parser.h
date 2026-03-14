@@ -9,6 +9,7 @@ struct parser
   u32                 pos;
 };
 
-struct parser *parser_create(struct token_array *ta);
+struct ast_node *parser_root(struct token_array *ta);
+u0 parse_free(struct parser **p);
 
 #endif

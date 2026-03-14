@@ -31,7 +31,7 @@ static const struct instr fmt_r_array[] =
 
 #define FMT_R_ARRAY_SIZE sizeof(fmt_r_array) / sizeof(fmt_r_array[0])
 
-inline u32 fmt_r_encode(struct instr *e, u8 rd, u8 rs1, u8 rs2)
+static inline u32 fmt_r_encode(struct instr *e, u8 rd, u8 rs1, u8 rs2)
 {
   expect(NULL != e);
   expect(e->type == FMT_R);
@@ -45,7 +45,7 @@ inline u32 fmt_r_encode(struct instr *e, u8 rd, u8 rs1, u8 rs2)
 
 }
 
-const struct instr *fmt_r_look_up(const char *label)
+static const struct instr *fmt_r_look_up(const char *label)
 {
   for (u32 i = 0; i < FMT_R_ARRAY_SIZE; ++i)
   {

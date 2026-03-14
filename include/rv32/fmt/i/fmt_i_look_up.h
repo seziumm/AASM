@@ -58,4 +58,17 @@ static inline const struct instr *fmt_i_look_up(const char *label)
   return NULL;
 }
 
+static inline const struct instr *fmt_i_look_up_load(const char *label)
+{
+  for (u32 i = 0; i < FMT_I_ARRAY_SIZE; ++i)
+  {
+    if (strcmp(label, fmt_i_array[i].label) == 0 && fmt_i_array[i].i.opcode == 0x03)
+    {
+      return &fmt_i_array[i];
+    }
+  }
+  return NULL;
+
+}
+
 #endif /* _FMT_I_LOOKUP_H */

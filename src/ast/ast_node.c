@@ -1,4 +1,5 @@
-#include "ast/ast_node_type.h"
+#include <ast/ast_node_type.h>
+#include <directive_look_up.h>
 #include "utils/common.h"
 #include <ast/ast_node.h>
 #include <utils/aalloc.h>
@@ -24,7 +25,7 @@ struct ast_node *ast_node_create(enum ast_node_type type)
 struct ast_node *ast_node_create_instr(struct instr *inst)
 {
   struct ast_node *n = ast_node_create(AST_INSTR);
-  n->as_instr.inst = *inst;
+  n->as_instr.inst = inst;
   return n;
 }
 
@@ -42,9 +43,10 @@ struct ast_node *ast_node_create_label_ref(u0)
   return n;
 }
 
-struct ast_node *ast_node_create_directive(u0)
+struct ast_node *ast_node_create_directive(struct directive *dir)
 {
   struct ast_node *n = ast_node_create(AST_DIRECTIVE);
+  n->as_directive.dir = dir;
   return n;
 }
 
@@ -104,7 +106,7 @@ u0 ast_node_print(struct ast_node *n, u32 depth)
 
   for (u32 i = 0; i < depth; ++i)
   {
-    printf("  ");
+    debugf("  ");
   }
 
   switch (n->type)
@@ -114,7 +116,7 @@ u0 ast_node_print(struct ast_node *n, u32 depth)
       break;
 
     case AST_INSTR:
-      debugf("[INSTR] %s\n", n->as_instr.inst.label ? n->as_instr.inst.label : "?");
+      debugf("[INSTR] %s\n", n->as_instr.inst->label ? n->as_instr.inst->label : "?");
       break;
 
     case AST_LABEL:
@@ -126,11 +128,11 @@ u0 ast_node_print(struct ast_node *n, u32 depth)
       break;
 
     case AST_DIRECTIVE:
-      debugf("[DIRECTIVE]\n", n->as_directive);
+      debugf("[DIRECTIVE] type=%s\n", directive_type_to_str(n->as_directive.dir->type));
       break;
 
     case AST_REG:
-      debugf("[REG] x%u\n", n->as_reg.reg);
+      debugf("[REG] X%u\n", n->as_reg.reg);
       break;
 
     case AST_IMM:

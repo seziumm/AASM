@@ -1,0 +1,20 @@
+# test17.aasm
+# max(X1, X2) -> X3
+# Uses SLT + branch
+
+.CODE
+&MAIN
+    ADDI X1, X0, 13
+    ADDI X2, X0, 27
+    SLT  X4, X2, X1      # X4 = 1 if X2 < X1
+    BNE  X4, X0, @FIRST  # if X1 > X2 pick X1
+
+&SECOND
+    ADD  X3, X0, X2      # X3 = X2
+    JAL  X0, @END
+
+&FIRST
+    ADD  X3, X0, X1      # X3 = X1
+
+&END
+    JAL  X0, @END        # X3 = 27

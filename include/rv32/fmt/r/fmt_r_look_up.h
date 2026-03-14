@@ -45,7 +45,7 @@ static inline u32 fmt_r_encode(struct instr *e, u8 rd, u8 rs1, u8 rs2)
 
 }
 
-static const struct instr *fmt_r_look_up(const char *label)
+static inline const struct instr *fmt_r_look_up(const char *label)
 {
   for (u32 i = 0; i < FMT_R_ARRAY_SIZE; ++i)
   {

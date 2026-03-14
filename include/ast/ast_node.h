@@ -16,13 +16,13 @@ struct ast_node
 
   union
   {
-    struct { struct instr *inst;       } as_instr;
-    struct { u32 addr;                 } as_label;
-    struct { u32 addr;                 } as_label_ref;
-    struct { struct directive *dir;    } as_directive;
-    struct { u8  reg;                  } as_reg;
-    struct { i32 value;                } as_imm;
-    struct {                           } as_root;
+    struct { struct instr *inst;                    } as_instr;
+    struct { u32 addr; const char *name;           } as_label;
+    struct { u32 addr; const char *name;           } as_label_ref;
+    struct { struct directive *dir;                } as_directive;
+    struct { u8  reg;                              } as_reg;
+    struct { i32 value;                            } as_imm;
+    struct {                                       } as_root;
   };
 
   struct ast_node **children;
@@ -34,10 +34,9 @@ struct ast_node *ast_node_create(enum ast_node_type type);
 u0               ast_node_free(struct ast_node **n);
 u0               ast_node_push(struct ast_node *n, struct ast_node *child);
 
-
 struct ast_node *ast_node_create_instr(struct instr *inst);
-struct ast_node *ast_node_create_label(u0);
-struct ast_node *ast_node_create_label_ref(u0);
+struct ast_node *ast_node_create_label(const char *name);
+struct ast_node *ast_node_create_label_ref(const char *name);
 struct ast_node *ast_node_create_directive(struct directive *dir);
 struct ast_node *ast_node_create_reg(u8 reg);
 struct ast_node *ast_node_create_imm(i32 value);
@@ -46,4 +45,3 @@ struct ast_node *ast_node_create_root(u0);
 u0 ast_node_print(struct ast_node *n, u32 depth);
 
 #endif /* _AST_NODE_H */
-

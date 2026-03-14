@@ -1,0 +1,21 @@
+# test25.aasm
+# GCD of X1=48, X2=18 via Euclidean algorithm -> X1
+# Uses DIV/REM from RV32M
+
+.CODE
+&MAIN
+    ADDI X1, X0, 48      # a = 48
+    ADDI X2, X0, 18      # b = 18
+
+&LOOP
+    BEQ  X2, X0, @DONE   # if b == 0 done
+    REM  X3, X1, X2      # r = a % b
+    ADD  X1, X0, X2      # a = b
+    ADD  X2, X0, X3      # b = r
+    JAL  X0, @LOOP
+
+&DONE
+    JAL  X0, @END        # X1 = gcd(48,18) = 6
+
+&END
+    JAL  X0, @END

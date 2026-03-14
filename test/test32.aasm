@@ -1,0 +1,21 @@
+# test32.aasm
+# Reverse all 32 bits of X1 -> X2
+# Each iteration: shift X1 right, insert LSB into X2 from left
+
+.CODE
+&MAIN
+    ADDI X1, X0, 1       # X1 = 0x00000001
+    ADDI X2, X0, 0       # X2 = result
+    ADDI X3, X0, 32      # counter = 32
+    ADDI X4, X0, 1       # mask
+
+&LOOP
+    SLLI X2, X2, 1       # result <<= 1
+    AND  X5, X1, X4      # X5 = X1 & 1
+    OR   X2, X2, X5      # result |= lsb
+    SRLI X1, X1, 1       # X1 >>= 1
+    ADDI X3, X3, -1
+    BNE  X3, X0, @LOOP
+
+&END
+    JAL  X0, @END        # X2 = 0x80000000

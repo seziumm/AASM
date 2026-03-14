@@ -1,0 +1,22 @@
+# test26.aasm
+# Compute base^exp iteratively -> X3
+# X1 = base = 3, X2 = exp = 5, X3 = result
+
+.CODE
+&MAIN
+    ADDI X1, X0, 3       # base = 3
+    ADDI X2, X0, 5       # exp  = 5
+    ADDI X3, X0, 1       # result = 1
+    ADDI X4, X0, 1       # step
+
+&LOOP
+    BEQ  X2, X0, @DONE   # if exp == 0 done
+    MUL  X3, X3, X1      # result *= base
+    SUB  X2, X2, X4      # exp--
+    JAL  X0, @LOOP
+
+&DONE
+    JAL  X0, @END        # X3 = 243
+
+&END
+    JAL  X0, @END

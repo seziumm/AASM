@@ -1,0 +1,13 @@
+# test12.aasm
+# RV32M: DIV, DIVU, REM, REMU
+
+.CODE
+&MAIN
+    ADDI X1, X0, 20
+    ADDI X2, X0, 3
+    DIV  X3, X1, X2      # X3 = 6
+    DIVU X4, X1, X2      # X4 = 6  (unsigned)
+    REM  X5, X1, X2      # X5 = 2
+    REMU X6, X1, X2      # X6 = 2  (unsigned)
+    DIV  X7, X1, X1      # X7 = 1  (self-division)
+    REM  X8, X1, X1      # X8 = 0

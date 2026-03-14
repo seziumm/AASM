@@ -1,0 +1,17 @@
+# test38.aasm
+# Print ASCII 'A' (65) to 'Z' (90) to UART at 0x10000000
+
+.CODE
+&MAIN
+    LUI  X1, 65536       # X1 = 0x10000000 (UART base)
+    ADDI X2, X0, 65      # X2 = 'A'
+    ADDI X3, X0, 91      # X3 = 'Z' + 1  (stop condition)
+
+&LOOP
+    BGE  X2, X3, @END    # if X2 >= 91 done
+    SB   X2, 0(X1)       # write char to UART
+    ADDI X2, X2, 1       # next char
+    JAL  X0, @LOOP
+
+&END
+    JAL  X0, @END

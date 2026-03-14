@@ -1,0 +1,13 @@
+# test04.aasm
+# Shift instructions: SLL, SRL, SRA, SLLI, SRLI, SRAI
+
+.CODE
+&MAIN
+    ADDI X1, X0, 8       # X1 = 8  (0b00001000)
+    ADDI X2, X0, 2       # X2 = 2  (shift amount)
+    SLL  X3, X1, X2      # X3 = 32
+    SRL  X4, X1, X2      # X4 = 2
+    SRA  X5, X1, X2      # X5 = 2  (arithmetic, positive)
+    SLLI X6, X1, 3       # X6 = 64
+    SRLI X7, X1, 1       # X7 = 4
+    SRAI X8, X1, 1       # X8 = 4

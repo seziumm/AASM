@@ -1,0 +1,42 @@
+# test30.aasm
+# Linear search: find value 7 in array of 6 words
+# X6 = found index (-1 if not found)
+
+.CODE
+&MAIN
+    ADDI X1, X0, 512     # base
+
+    # store [3, 9, 7, 1, 7, 5]
+    ADDI X9, X0, 3
+    SW   X9, 0(X1)
+    ADDI X9, X0, 9
+    SW   X9, 4(X1)
+    ADDI X9, X0, 7
+    SW   X9, 8(X1)
+    ADDI X9, X0, 1
+    SW   X9, 12(X1)
+    ADDI X9, X0, 7
+    SW   X9, 16(X1)
+    ADDI X9, X0, 5
+    SW   X9, 20(X1)
+
+    ADDI X7, X0, 7       # target = 7
+    ADDI X2, X0, 0       # index = 0
+    ADDI X8, X0, 6       # length = 6
+    ADDI X6, X0, -1      # result = -1 (not found)
+    ADD  X3, X0, X1      # ptr = base
+
+&LOOP
+    BGE  X2, X8, @END    # if index >= length done
+    LW   X4, 0(X3)       # load arr[index]
+    BNE  X4, X7, @NEXT   # if != target skip
+    ADD  X6, X0, X2      # result = index
+    JAL  X0, @END        # found, stop
+
+&NEXT
+    ADDI X2, X2, 1       # index++
+    ADDI X3, X3, 4       # ptr += 4
+    JAL  X0, @LOOP
+
+&END
+    JAL  X0, @END        # X6 = 2 (first occurrence)

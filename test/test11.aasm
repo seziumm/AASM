@@ -1,0 +1,11 @@
+# test11.aasm
+# RV32M: MUL, MULH, MULHSU, MULHU
+
+.CODE
+&MAIN
+    ADDI X1, X0, 6
+    ADDI X2, X0, 7
+    MUL    X3, X1, X2    # X3 = 42
+    MULH   X4, X1, X2    # X4 = high bits of signed 6*7
+    MULHSU X5, X1, X2    # X5 = high bits signed*unsigned
+    MULHU  X6, X1, X2    # X6 = high bits unsigned*unsigned

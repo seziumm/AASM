@@ -1,0 +1,24 @@
+# test18.aasm
+# Nested calls: MAIN calls OUTER which calls INNER
+# Manual stack via SW/LW on X2 (sp)
+
+.CODE
+&MAIN
+    LUI  X2, 1            # sp = 0x1000 (stack base)
+    JAL  X1, @OUTER
+    JAL  X0, @END
+
+&OUTER
+    ADDI X2, X2, -4
+    SW   X1, 0(X2)        # save return addr
+    JAL  X1, @INNER
+    LW   X1, 0(X2)        # restore return addr
+    ADDI X2, X2, 4
+    JALR X0, X1, 0
+
+&INNER
+    ADDI X5, X0, 99       # do some work
+    JALR X0, X1, 0
+
+&END
+    JAL  X0, @END

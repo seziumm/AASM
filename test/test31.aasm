@@ -1,0 +1,23 @@
+# test31.aasm
+# Integer division X1/X2 via repeated subtraction -> X3 (quotient), X4 (remainder)
+# Does not use RV32M
+
+.CODE
+&MAIN
+    ADDI X1, X0, 17      # dividend = 17
+    ADDI X2, X0, 5       # divisor  = 5
+    ADDI X3, X0, 0       # quotient = 0
+    ADD  X4, X0, X1      # remainder = dividend
+
+&LOOP
+    SLT  X5, X4, X2      # X5 = 1 if remainder < divisor
+    BNE  X5, X0, @DONE   # if remainder < divisor stop
+    SUB  X4, X4, X2      # remainder -= divisor
+    ADDI X3, X3, 1       # quotient++
+    JAL  X0, @LOOP
+
+&DONE
+    JAL  X0, @END        # X3=3, X4=2
+
+&END
+    JAL  X0, @END

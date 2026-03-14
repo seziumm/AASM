@@ -1,0 +1,17 @@
+# test16.aasm
+# Absolute value: if X1 < 0 negate it
+# Uses SLT + branch pattern
+
+.CODE
+&MAIN
+    ADDI X1, X0, -7      # X1 = -7
+    SLT  X2, X1, X0      # X2 = 1 if X1 < 0
+    BEQ  X2, X0, @DONE   # if not negative skip
+
+    SUB  X1, X0, X1      # X1 = 0 - X1 = +7
+
+&DONE
+    JAL  X0, @END        # X1 holds |input|
+
+&END
+    JAL  X0, @END

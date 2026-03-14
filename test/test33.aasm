@@ -1,0 +1,37 @@
+# test33.aasm
+# Factorial of 5 using a call stack
+# X1 = RA, X2 = SP, X10 = argument / return value
+
+.CODE
+&MAIN
+    LUI  X2, 1           # sp = 0x1000
+    ADDI X10, X0, 5      # arg = 5
+    JAL  X1, @FACT
+    JAL  X0, @END        # X10 = 120
+
+# FACT(X10) -> X10   (recursive via manual stack)
+&FACT
+    ADDI X2, X2, -8
+    SW   X1, 4(X2)       # save RA
+    SW   X10, 0(X2)      # save arg
+
+    ADDI X11, X0, 1
+    BGE  X11, X10, @BASE # if 1 >= n return 1
+
+    ADDI X10, X10, -1    # n-1
+    JAL  X1, @FACT       # FACT(n-1) -> X10
+
+    LW   X11, 0(X2)      # reload n
+    MUL  X10, X10, X11   # result = n * FACT(n-1)
+    JAL  X0, @RET
+
+&BASE
+    ADDI X10, X0, 1      # return 1
+
+&RET
+    LW   X1, 4(X2)       # restore RA
+    ADDI X2, X2, 8
+    JALR X0, X1, 0
+
+&END
+    JAL  X0, @END

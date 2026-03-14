@@ -1,0 +1,11 @@
+# test09.aasm
+# U-type: LUI, AUIPC
+
+.CODE
+&MAIN
+    LUI   X1, 1          # X1 = 0x00001000
+    LUI   X2, 65536      # X2 = 0x10000000  (UART base)
+    LUI   X3, 524287     # X3 = 0x7FFFF000  (max positive)
+    AUIPC X4, 0          # X4 = PC + 0
+    AUIPC X5, 1          # X5 = PC + 0x1000
+    LUI   X6, 4096       # X6 = 0x01000000

@@ -1,0 +1,21 @@
+# test20.aasm
+# memcpy: copy 8 bytes from src (X1) to dst (X2)
+# X3 = counter, X4 = tmp byte
+
+.CODE
+&MAIN
+    ADDI X1, X0, 0       # src base = 0
+    ADDI X2, X0, 64      # dst base = 64
+    ADDI X3, X0, 8       # byte count = 8
+    ADDI X5, X0, 1       # step
+
+&LOOP
+    LB   X4, 0(X1)       # load byte from src
+    SB   X4, 0(X2)       # store byte to dst
+    ADDI X1, X1, 1       # src++
+    ADDI X2, X2, 1       # dst++
+    SUB  X3, X3, X5      # count--
+    BNE  X3, X0, @LOOP
+
+&END
+    JAL  X0, @END

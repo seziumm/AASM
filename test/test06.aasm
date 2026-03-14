@@ -1,0 +1,30 @@
+# test06.aasm
+# Load instructions: LB, LH, LW, LBU, LHU
+# Stores known values first into a safe area, then loads them back
+
+.CODE
+&MAIN
+    ADDI X1, X0, 0       # base address = 512 (safe past code)
+    ADDI X1, X1, 0       # X1 = 0 (loads from zeroed mem)
+    LUI  X1, 0           # X1 = 0
+
+    # store known values at addr 512 (0x200) — safely past all code
+    ADDI X9, X0, 0       # high part
+    LUI  X9, 0
+    ADDI X9, X0, 42      # value = 42
+    ADDI X1, X0, 0
+    LUI  X1, 0
+    ADDI X1, X1, 512     # base = 512
+
+    SW   X9,  0(X1)      # mem[512] = 42
+
+    LW   X2,  0(X1)      # X2 = 42
+    LH   X3,  0(X1)      # X3 = 42  (low half)
+    LB   X4,  0(X1)      # X4 = 42  (low byte, positive)
+    LHU  X5,  0(X1)      # X5 = 42
+    LBU  X6,  0(X1)      # X6 = 42
+    LW   X7,  0(X1)      # X7 = 42  (same word)
+    LB   X8,  0(X1)      # X8 = 42
+
+&END
+    JAL  X0, @END

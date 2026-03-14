@@ -4,7 +4,6 @@
 #include <ast/ast_node.h>
 #include <utils/aalloc.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 struct ast_node *ast_node_create(enum ast_node_type type)
 {
@@ -19,7 +18,6 @@ struct ast_node *ast_node_create(enum ast_node_type type)
   };
 
   return n;
-
 }
 
 struct ast_node *ast_node_create_instr(struct instr *inst)
@@ -29,17 +27,19 @@ struct ast_node *ast_node_create_instr(struct instr *inst)
   return n;
 }
 
-struct ast_node *ast_node_create_label(u0)
+struct ast_node *ast_node_create_label(const char *name)
 {
   struct ast_node *n = ast_node_create(AST_LABEL);
-  n->as_label.addr = 0; /* resolved later */
+  n->as_label.addr = 0;   /* resolved in codegen pass 1 */
+  n->as_label.name = name;
   return n;
 }
 
-struct ast_node *ast_node_create_label_ref(u0)
+struct ast_node *ast_node_create_label_ref(const char *name)
 {
   struct ast_node *n = ast_node_create(AST_LABEL_REF);
-  n->as_label_ref.addr = 0; /* resolved later */
+  n->as_label_ref.addr = 0;   /* resolved in codegen pass 2 */
+  n->as_label_ref.name = name;
   return n;
 }
 
@@ -91,9 +91,7 @@ u0 ast_node_free(struct ast_node **n)
   if (NULL == n || NULL == *n) return;
 
   for (u32 i = 0; i < (*n)->children_size; ++i)
-  {
     ast_node_free(&(*n)->children[i]);
-  }
 
   a_free((*n)->children);
   a_free(*n);
@@ -105,44 +103,37 @@ u0 ast_node_print(struct ast_node *n, u32 depth)
   if (NULL == n) return;
 
   for (u32 i = 0; i < depth; ++i)
-  {
     debugf("  ");
-  }
 
   switch (n->type)
   {
     case AST_ROOT:
       debugf("[ROOT]\n");
       break;
-
     case AST_INSTR:
       debugf("[INSTR] %s\n", n->as_instr.inst->label ? n->as_instr.inst->label : "?");
       break;
-
     case AST_LABEL:
-      debugf("[LABEL] addr=0x%08X\n", n->as_label.addr);
+      debugf("[LABEL] &%s addr=0x%08X\n",
+             n->as_label.name ? n->as_label.name : "?",
+             n->as_label.addr);
       break;
-
     case AST_LABEL_REF:
-      debugf("[LABEL_REF] addr=0x%08X\n", n->as_label_ref.addr);
+      debugf("[LABEL_REF] @%s addr=0x%08X\n",
+             n->as_label_ref.name ? n->as_label_ref.name : "?",
+             n->as_label_ref.addr);
       break;
-
     case AST_DIRECTIVE:
       debugf("[DIRECTIVE] type=%s\n", directive_type_to_str(n->as_directive.dir->type));
       break;
-
     case AST_REG:
       debugf("[REG] X%u\n", n->as_reg.reg);
       break;
-
     case AST_IMM:
       debugf("[IMM] %d\n", n->as_imm.value);
       break;
-
   }
 
   for (u32 i = 0; i < n->children_size; ++i)
-  {
     ast_node_print(n->children[i], depth + 1);
-  }
 }

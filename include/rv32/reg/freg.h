@@ -28,11 +28,11 @@ static const struct reg freg_table[] =
 
 #define FREG_TABLE_SIZE (sizeof(freg_table) / sizeof(freg_table[0]))
 
-static inline const struct reg* freg_look_up(const char *name)
+static inline const struct reg* freg_look_up(const char *label)
 {
   for(u32 i = 0; i < FREG_TABLE_SIZE; ++i)
   {
-    if (strcmp(name, freg_table[i].name) == 0)
+    if (strcmp(label, freg_table[i].label) == 0)
     {
       return &freg_table[i];
     }

@@ -5,7 +5,7 @@
 
 struct reg 
 { 
-  const char *name; 
+  const char *label; 
   u8 index; 
 };
 

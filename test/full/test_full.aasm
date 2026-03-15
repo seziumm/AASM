@@ -1,0 +1,714 @@
+# test_full.aasm
+# Comprehensive RV32IM test — covers every instruction format,
+# every directive, and realistic code patterns.
+#
+# Memory map (base 0x80000000):
+#   0x80000000  .CODE — startup + tests
+#   UART base   0x10000000 (X28 throughout)
+
+.CODE
+
+# ============================================================
+#  STARTUP
+#  X28 = UART base
+#  X2  = stack pointer (grows down from 0x80010000)
+# ============================================================
+
+&START
+    LUI   X28, 65536          # X28 = 0x10000000 UART
+    LUI   X2,  524288         # X2  = 0x80000000 (will add offset)
+    ADDI  X2,  X2,  0         # sp = 0x80000000 (placeholder)
+    LUI   X1,  0              # clear X1
+    ADDI  X1,  X0,  0         # X1 = 0
+
+# ============================================================
+#  TEST 1 — R-type arithmetic
+# ============================================================
+
+&T1_R_TYPE
+    ADDI  X1,  X0,  15        # X1 = 15
+    ADDI  X2,  X0,  7         # X2 = 7
+    ADD   X3,  X1,  X2        # X3 = 22
+    SUB   X4,  X1,  X2        # X4 = 8
+    AND   X5,  X1,  X2        # X5 = 7
+    OR    X6,  X1,  X2        # X6 = 15
+    XOR   X7,  X1,  X2        # X7 = 8
+    SLL   X8,  X1,  X2        # X8 = 15 << 7 = 1920
+    SRL   X9,  X8,  X2        # X9 = 1920 >> 7 = 15
+    SRA   X10, X8,  X2        # X10 = 1920 >> 7 = 15 (arithmetic)
+    SLT   X11, X2,  X1        # X11 = 1 (7 < 15)
+    SLT   X12, X1,  X2        # X12 = 0
+    SLTU  X13, X2,  X1        # X13 = 1
+    SLTU  X14, X1,  X2        # X14 = 0
+
+# ============================================================
+#  TEST 2 — I-type immediate arithmetic
+# ============================================================
+
+&T2_I_TYPE
+    ADDI  X1,  X0,  100       # X1 = 100
+    ADDI  X2,  X1,  -50       # X2 = 50
+    ADDI  X3,  X0,  -1        # X3 = 0xFFFFFFFF
+    XORI  X4,  X3,  -1        # X4 = 0x00000000
+    ORI   X5,  X0,  255       # X5 = 0xFF
+    ANDI  X6,  X5,  15        # X6 = 0x0F
+    SLTI  X7,  X2,  100       # X7 = 1 (50 < 100)
+    SLTI  X8,  X2,  50        # X8 = 0
+    SLTIU X9,  X2,  100       # X9 = 1
+    SLTIU X10, X3,  1         # X10 = 0 (0xFFFFFFFF is large unsigned)
+
+# ============================================================
+#  TEST 3 — Shift immediates
+# ============================================================
+
+&T3_SHIFTS
+    ADDI  X1,  X0,  1         # X1 = 1
+    SLLI  X2,  X1,  1         # X2 = 2
+    SLLI  X3,  X1,  8         # X3 = 256
+    SLLI  X4,  X1,  16        # X4 = 65536
+    SLLI  X5,  X1,  31        # X5 = 0x80000000
+    SRLI  X6,  X5,  1         # X6 = 0x40000000
+    SRLI  X7,  X5,  31        # X7 = 1
+    SRAI  X8,  X5,  1         # X8 = 0xC0000000 (sign extended)
+    SRAI  X9,  X5,  31        # X9 = 0xFFFFFFFF
+
+# ============================================================
+#  TEST 4 — U-type
+# ============================================================
+
+&T4_U_TYPE
+    LUI   X1,  1              # X1 = 0x00001000
+    LUI   X2,  4096           # X2 = 0x01000000
+    LUI   X3,  65536          # X3 = 0x10000000
+    LUI   X4,  524287         # X4 = 0x7FFFF000
+    AUIPC X5,  0              # X5 = PC
+    AUIPC X6,  1              # X6 = PC + 0x1000
+    AUIPC X7,  4              # X7 = PC + 0x4000
+
+# ============================================================
+#  TEST 5 — Load / Store
+# ============================================================
+
+&T5_LOAD_STORE
+    LUI   X1,  0              # base = 0
+    ADDI  X1,  X1,  512       # X1 = 512 (safe memory area)
+
+    # store various widths
+    ADDI  X9,  X0,  127       # X9 = 127
+    SB    X9,  0(X1)
+    ADDI  X9,  X0,  -1        # X9 = 0xFFFFFFFF
+    SW    X9,  4(X1)
+    ADDI  X9,  X0,  1000      # X9 = 1000
+    SH    X9,  8(X1)
+
+    # load back
+    LB    X2,  0(X1)          # X2 = 127
+    LBU   X3,  0(X1)          # X3 = 127
+    LW    X4,  4(X1)          # X4 = 0xFFFFFFFF
+    LH    X5,  8(X1)          # X5 = 1000
+    LHU   X6,  8(X1)          # X6 = 1000
+
+    # negative byte sign extension
+    ADDI  X9,  X0,  -128      # X9 = 0xFFFFFF80
+    SB    X9,  12(X1)
+    LB    X7,  12(X1)         # X7 = -128 (sign extended)
+    LBU   X8,  12(X1)         # X8 = 128  (zero extended)
+
+# ============================================================
+#  TEST 6 — Branch instructions
+# ============================================================
+
+&T6_BRANCH
+    ADDI  X1,  X0,  5
+    ADDI  X2,  X0,  5
+    ADDI  X3,  X0,  0         # result = 0
+
+    BEQ   X1,  X2,  @T6_EQ   # should branch
+    ADDI  X3,  X0,  -1        # should NOT execute
+    JAL   X0,  @T6_DONE
+
+&T6_EQ
+    ADDI  X3,  X3,  1         # X3 = 1
+
+    BNE   X1,  X2,  @T6_DONE # should NOT branch
+    ADDI  X3,  X3,  1         # X3 = 2
+
+    ADDI  X4,  X0,  10
+    BLT   X1,  X4,  @T6_LT   # 5 < 10, should branch
+    ADDI  X3,  X0,  -1
+
+&T6_LT
+    ADDI  X3,  X3,  1         # X3 = 3
+
+    BGE   X4,  X1,  @T6_GE   # 10 >= 5, should branch
+    ADDI  X3,  X0,  -1
+
+&T6_GE
+    ADDI  X3,  X3,  1         # X3 = 4
+
+    ADDI  X5,  X0,  -1        # X5 = 0xFFFFFFFF (large unsigned)
+    BLTU  X1,  X5,  @T6_LTU  # 5 <u 0xFFFFFFFF, should branch
+    ADDI  X3,  X0,  -1
+
+&T6_LTU
+    ADDI  X3,  X3,  1         # X3 = 5
+
+    BGEU  X5,  X1,  @T6_DONE # 0xFFFFFFFF >=u 5, should branch
+    ADDI  X3,  X0,  -1
+
+&T6_DONE
+    ADDI  X3,  X3,  1         # X3 = 6
+
+# ============================================================
+#  TEST 7 — JAL / JALR subroutine calls
+# ============================================================
+
+&T7_CALLS
+    ADDI  X10, X0,  7         # arg = 7
+    JAL   X1,  @T7_DOUBLE     # call DOUBLE(X10) -> X10
+    JAL   X0,  @T7_AFTER      # skip function body
+
+&T7_DOUBLE
+    ADDI  X10, X10, 0
+    ADD   X10, X10, X10       # X10 *= 2
+    JALR  X0,  X1,  0         # return
+
+&T7_AFTER
+    # X10 should be 14 here
+    JAL   X1,  @T7_INC        # call INC
+    JAL   X1,  @T7_INC        # call INC again
+    JAL   X0,  @T7_END
+
+&T7_INC
+    ADDI  X10, X10, 1         # X10++
+    JALR  X0,  X1,  0
+
+&T7_END
+    # X10 should be 16
+
+# ============================================================
+#  TEST 8 — RV32M multiply
+# ============================================================
+
+&T8_MUL
+    ADDI  X1,  X0,  6
+    ADDI  X2,  X0,  7
+    MUL   X3,  X1,  X2        # X3 = 42
+    MUL   X4,  X3,  X3        # X4 = 1764
+    MULH  X5,  X3,  X3        # X5 = high bits of 42*42 (0)
+    ADDI  X6,  X0,  -1        # X6 = 0xFFFFFFFF
+    MULHU X7,  X6,  X6        # X7 = high bits of large unsigned product
+    MULHSU X8, X6,  X2        # X8 = mixed signed/unsigned high
+
+# ============================================================
+#  TEST 9 — RV32M divide
+# ============================================================
+
+&T9_DIV
+    ADDI  X1,  X0,  100
+    ADDI  X2,  X0,  7
+    DIV   X3,  X1,  X2        # X3 = 14
+    REM   X4,  X1,  X2        # X4 = 2
+    DIVU  X5,  X1,  X2        # X5 = 14
+    REMU  X6,  X1,  X2        # X6 = 2
+
+    # division by zero — RISC-V mandates X = -1 or dividend
+    ADDI  X7,  X0,  0
+    DIV   X8,  X1,  X7        # X8 = -1 (all ones)
+    REM   X9,  X1,  X7        # X9 = X1 (dividend)
+
+    # negative dividend
+    ADDI  X10, X0,  -17
+    ADDI  X11, X0,  5
+    DIV   X12, X10, X11       # X12 = -3
+    REM   X13, X10, X11       # X13 = -2
+
+# ============================================================
+#  TEST 10 — UART print: "TEST OK\n"
+# ============================================================
+
+&T10_PRINT
+    # load string pointer via AUIPC + offset
+    AUIPC X6,  0              # X6 = PC of this instruction
+    ADDI  X6,  X6,  24        # X6 points to &MSG (8 instrs * 4 = 32... adjust as needed)
+
+&T10_LOOP
+    LB    X7,  0(X6)          # load byte
+    BEQ   X7,  X0,  @T10_END # NUL terminator
+    SB    X7,  0(X28)         # write to UART
+    ADDI  X6,  X6,  1         # next byte
+    JAL   X0,  @T10_LOOP
+
+&T10_END
+
+# ============================================================
+#  TEST 11 — Fibonacci (iterative, n=12)
+# ============================================================
+
+&T11_FIB
+    ADDI  X1,  X0,  0         # a = fib(0) = 0
+    ADDI  X2,  X0,  1         # b = fib(1) = 1
+    ADDI  X3,  X0,  12        # n = 12
+    ADDI  X5,  X0,  1         # step
+
+&T11_LOOP
+    BEQ   X3,  X0,  @T11_DONE
+    ADD   X4,  X1,  X2        # tmp = a + b
+    ADD   X1,  X0,  X2        # a = b
+    ADD   X2,  X0,  X4        # b = tmp
+    SUB   X3,  X3,  X5        # n--
+    JAL   X0,  @T11_LOOP
+
+&T11_DONE
+    # X2 = fib(12) = 144
+
+# ============================================================
+#  TEST 12 — Bubble sort (8 elements)
+# ============================================================
+
+&T12_SORT
+    ADDI  X1,  X0,  512       # base addr
+    ADDI  X2,  X0,  1
+
+    # store [8,3,7,1,5,9,2,6]
+    ADDI  X9,  X0,  8
+    SW    X9,  0(X1)
+    ADDI  X9,  X0,  3
+    SW    X9,  4(X1)
+    ADDI  X9,  X0,  7
+    SW    X9,  8(X1)
+    ADDI  X9,  X0,  1
+    SW    X9,  12(X1)
+    ADDI  X9,  X0,  5
+    SW    X9,  16(X1)
+    ADDI  X9,  X0,  9
+    SW    X9,  20(X1)
+    ADDI  X9,  X0,  2
+    SW    X9,  24(X1)
+    ADDI  X9,  X0,  6
+    SW    X9,  28(X1)
+
+    ADDI  X3,  X0,  7         # outer passes
+
+&T12_OUTER
+    BEQ   X3,  X0,  @T12_END
+    ADDI  X4,  X0,  0         # inner j = 0
+    ADDI  X5,  X0,  7         # limit
+
+&T12_INNER
+    BGE   X4,  X5,  @T12_NEXT
+    SLLI  X6,  X4,  2         # offset = j * 4
+    ADD   X7,  X1,  X6
+    LW    X8,  0(X7)
+    LW    X9,  4(X7)
+    SLT   X10, X9,  X8        # X10 = 1 if arr[j+1] < arr[j]
+    BEQ   X10, X0,  @T12_SKIP
+    SW    X9,  0(X7)
+    SW    X8,  4(X7)
+
+&T12_SKIP
+    ADDI  X4,  X4,  1
+    JAL   X0,  @T12_INNER
+
+&T12_NEXT
+    ADDI  X3,  X3,  -1
+    JAL   X0,  @T12_OUTER
+
+&T12_END
+
+# ============================================================
+#  TEST 13 — Stack: nested calls with manual push/pop
+# ============================================================
+
+&T13_STACK
+    LUI   X2,  1              # sp = 0x1000
+    ADDI  X10, X0,  5
+    JAL   X1,  @T13_FACT
+    JAL   X0,  @T13_AFTER
+
+&T13_FACT
+    ADDI  X2,  X2,  -8
+    SW    X1,  4(X2)
+    SW    X10, 0(X2)
+    ADDI  X11, X0,  1
+    BGE   X11, X10, @T13_BASE
+    ADDI  X10, X10, -1
+    JAL   X1,  @T13_FACT
+    LW    X11, 0(X2)
+    MUL   X10, X10, X11
+    JAL   X0,  @T13_RET
+
+&T13_BASE
+    ADDI  X10, X0,  1
+
+&T13_RET
+    LW    X1,  4(X2)
+    ADDI  X2,  X2,  8
+    JALR  X0,  X1,  0
+
+&T13_AFTER
+    # X10 = 120
+
+# ============================================================
+#  TEST 14 — Bitwise operations
+# ============================================================
+
+&T14_BITWISE
+    LUI   X1,  1              # X1 = 0x1000
+    ADDI  X1,  X1,  -1        # X1 = 0x0FFF
+    LUI   X2,  2              # X2 = 0x2000
+    ADDI  X2,  X2,  -1        # X2 = 0x1FFF
+    AND   X3,  X1,  X2        # X3 = 0x0FFF
+    OR    X4,  X1,  X2        # X4 = 0x1FFF
+    XOR   X5,  X1,  X2        # X5 = 0x1000
+    XORI  X6,  X1,  -1        # X6 = ~0x0FFF
+    ORI   X7,  X0,  -1        # X7 = 0xFFFFFFFF
+    ANDI  X8,  X7,  255       # X8 = 0xFF
+
+# ============================================================
+#  TEST 15 — popcount (count set bits in X1)
+# ============================================================
+
+&T15_POPCOUNT
+    XORI  X1,  X0,  -1        # X1 = 0xFFFFFFFF (32 bits)
+    ADDI  X2,  X0,  0         # count = 0
+    ADDI  X3,  X0,  32        # loop = 32
+    ADDI  X4,  X0,  1         # mask
+
+&T15_LOOP
+    BEQ   X3,  X0,  @T15_DONE
+    AND   X5,  X1,  X4        # lsb
+    ADD   X2,  X2,  X5        # count += lsb
+    SRLI  X1,  X1,  1
+    ADDI  X3,  X3,  -1
+    JAL   X0,  @T15_LOOP
+
+&T15_DONE
+    # X2 = 32
+
+# ============================================================
+#  TEST 16 — memcpy 16 bytes
+# ============================================================
+
+&T16_MEMCPY
+    ADDI  X1,  X0,  512       # src
+    ADDI  X2,  X0,  640       # dst
+    ADDI  X3,  X0,  16        # count
+    ADDI  X4,  X0,  1
+
+&T16_LOOP
+    BEQ   X3,  X0,  @T16_DONE
+    LB    X5,  0(X1)
+    SB    X5,  0(X2)
+    ADDI  X1,  X1,  1
+    ADDI  X2,  X2,  1
+    SUB   X3,  X3,  X4
+    JAL   X0,  @T16_LOOP
+
+&T16_DONE
+
+# ============================================================
+#  TEST 17 — memset 32 bytes to 0xAB
+# ============================================================
+
+&T17_MEMSET
+    ADDI  X1,  X0,  768       # base
+    ADDI  X2,  X0,  32        # count
+    ADDI  X3,  X0,  -85       # 0xAB = 256-85 trick
+
+&T17_LOOP
+    BEQ   X2,  X0,  @T17_DONE
+    SB    X3,  0(X1)
+    ADDI  X1,  X1,  1
+    ADDI  X2,  X2,  -1
+    JAL   X0,  @T17_LOOP
+
+&T17_DONE
+
+# ============================================================
+#  TEST 18 — Integer square root (Newton approximation)
+# ============================================================
+
+&T18_SQRT
+    ADDI  X1,  X0,  0         # n = 144
+    LUI   X1,  0
+    ADDI  X1,  X0,  144       # n = 144
+    ADD   X2,  X0,  X1        # x = n (initial guess)
+    ADDI  X3,  X0,  1         # step
+
+&T18_LOOP
+    BEQ   X2,  X0,  @T18_DONE
+    DIV   X4,  X1,  X2        # t = n / x
+    ADD   X5,  X2,  X4        # t = x + n/x
+    SRLI  X5,  X5,  1         # t = (x + n/x) / 2
+    BGE   X5,  X2,  @T18_DONE # converged
+    ADD   X2,  X0,  X5
+    JAL   X0,  @T18_LOOP
+
+&T18_DONE
+    # X2 = 12
+
+# ============================================================
+#  TEST 19 — GCD (Euclidean)
+# ============================================================
+
+&T19_GCD
+    ADDI  X1,  X0,  48
+    ADDI  X2,  X0,  18
+
+&T19_LOOP
+    BEQ   X2,  X0,  @T19_DONE
+    REM   X3,  X1,  X2
+    ADD   X1,  X0,  X2
+    ADD   X2,  X0,  X3
+    JAL   X0,  @T19_LOOP
+
+&T19_DONE
+    # X1 = 6
+
+# ============================================================
+#  TEST 20 — Absolute value of negative numbers
+# ============================================================
+
+&T20_ABS
+    ADDI  X1,  X0,  -42
+    SLT   X2,  X1,  X0        # X2 = 1 if negative
+    BEQ   X2,  X0,  @T20_POS
+    SUB   X1,  X0,  X1        # negate
+
+&T20_POS
+    # X1 = 42
+
+    ADDI  X3,  X0,  -2048     # min 12-bit immediate
+    SLT   X4,  X3,  X0
+    BEQ   X4,  X0,  @T20_NEXT
+    SUB   X3,  X0,  X3
+
+&T20_NEXT
+
+# ============================================================
+#  TEST 21 — Bit reversal of 32-bit word
+# ============================================================
+
+&T21_BITREV
+    ADDI  X1,  X0,  1         # X1 = 0x00000001
+    ADDI  X2,  X0,  0         # result
+    ADDI  X3,  X0,  32
+    ADDI  X4,  X0,  1
+
+&T21_LOOP
+    BEQ   X3,  X0,  @T21_DONE
+    SLLI  X2,  X2,  1
+    AND   X5,  X1,  X4
+    OR    X2,  X2,  X5
+    SRLI  X1,  X1,  1
+    ADDI  X3,  X3,  -1
+    JAL   X0,  @T21_LOOP
+
+&T21_DONE
+    # X2 = 0x80000000
+
+# ============================================================
+#  TEST 22 — Multiply without MUL (repeated addition)
+# ============================================================
+
+&T22_MUL_SOFT
+    ADDI  X1,  X0,  13        # multiplicand
+    ADDI  X2,  X0,  11        # multiplier
+    ADDI  X3,  X0,  0         # result
+    ADDI  X4,  X0,  1
+
+&T22_LOOP
+    BEQ   X2,  X0,  @T22_DONE
+    ADD   X3,  X3,  X1
+    SUB   X2,  X2,  X4
+    JAL   X0,  @T22_LOOP
+
+&T22_DONE
+    # X3 = 143
+
+# ============================================================
+#  TEST 23 — Sieve of Eratosthenes (primes up to 50)
+#  Array of bytes at base 1024: 1=prime, 0=composite
+# ============================================================
+
+&T23_SIEVE
+    ADDI  X1,  X0,  0
+    LUI   X1,  0
+    ADDI  X1,  X0,  1024      # base
+
+    # init all to 1
+    ADDI  X2,  X0,  51
+    ADDI  X3,  X1,  0
+    ADDI  X4,  X0,  1
+
+&T23_INIT
+    BEQ   X2,  X0,  @T23_SIEVE_START
+    SB    X4,  0(X3)
+    ADDI  X3,  X3,  1
+    ADDI  X2,  X2,  -1
+    JAL   X0,  @T23_INIT
+
+&T23_SIEVE_START
+    # mark 0 and 1 as not prime
+    SB    X0,  0(X1)
+    SB    X0,  1(X1)
+
+    ADDI  X5,  X0,  2         # p = 2
+
+&T23_OUTER
+    ADDI  X6,  X0,  8         # sqrt(50) ~ 7, use 8
+    BGE   X5,  X6,  @T23_DONE
+    ADD   X7,  X1,  X5
+    LB    X8,  0(X7)
+    BEQ   X8,  X0,  @T23_NEXT_P  # skip if composite
+
+    # mark multiples of p
+    MUL   X9,  X5,  X5        # j = p*p
+    ADDI  X10, X0,  51
+
+&T23_INNER
+    BGE   X9,  X10, @T23_NEXT_P
+    ADD   X11, X1,  X9
+    SB    X0,  0(X11)         # mark composite
+    ADD   X9,  X9,  X5
+    JAL   X0,  @T23_INNER
+
+&T23_NEXT_P
+    ADDI  X5,  X5,  1
+    JAL   X0,  @T23_OUTER
+
+&T23_DONE
+
+# ============================================================
+#  TEST 24 — Binary search
+# ============================================================
+
+&T24_BSEARCH
+    ADDI  X1,  X0,  512       # array base
+
+    # store sorted [2,5,8,12,16,23,38,45]
+    ADDI  X9,  X0,  2
+    SW    X9,  0(X1)
+    ADDI  X9,  X0,  5
+    SW    X9,  4(X1)
+    ADDI  X9,  X0,  8
+    SW    X9,  8(X1)
+    ADDI  X9,  X0,  12
+    SW    X9,  12(X1)
+    ADDI  X9,  X0,  16
+    SW    X9,  16(X1)
+    ADDI  X9,  X0,  23
+    SW    X9,  20(X1)
+    ADDI  X9,  X0,  38
+    SW    X9,  24(X1)
+    ADDI  X9,  X0,  45
+    SW    X9,  28(X1)
+
+    ADDI  X2,  X0,  0         # lo = 0
+    ADDI  X3,  X0,  7         # hi = 7
+    ADDI  X4,  X0,  23        # target = 23
+    ADDI  X5,  X0,  -1        # result = -1 (not found)
+
+&T24_LOOP
+    SLT   X10, X3, X2   # lo > hi?
+    BNE   X10, X0,  @T24_DONE
+    ADD   X6,  X2,  X3        # mid = lo + hi
+    SRLI  X6,  X6,  1         # mid /= 2
+    SLLI  X7,  X6,  2         # offset = mid * 4
+    ADD   X8,  X1,  X7
+    LW    X9,  0(X8)          # arr[mid]
+    BEQ   X9,  X4,  @T24_FOUND
+    SLT   X10, X9,  X4
+    BNE   X10, X0,  @T24_RIGHT
+    ADDI  X3,  X6,  -1        # hi = mid - 1
+    JAL   X0,  @T24_LOOP
+
+&T24_RIGHT
+    ADDI  X2,  X6,  1         # lo = mid + 1
+    JAL   X0,  @T24_LOOP
+
+&T24_FOUND
+    ADD   X5,  X0,  X6        # result = mid index (5)
+
+&T24_DONE
+    # X5 = 5
+
+# ============================================================
+#  TEST 25 — UART: print decimal number in X10
+# ============================================================
+
+&T25_PRINTDEC
+    ADDI  X10, X0,  0
+    ADDI  X10, X0,  255       # print 255
+
+    ADDI  X11, X0,  0         # hundreds
+    ADDI  X12, X0,  0         # tens
+    ADDI  X13, X0,  10
+
+&T25_HUNDREDS
+    ADDI  X14, X0,  100
+    BLT   X10, X14, @T25_TENS
+    ADDI  X10, X10, -100
+    ADDI  X11, X11, 1
+    JAL   X0,  @T25_HUNDREDS
+
+&T25_TENS
+    BLT   X10, X13, @T25_UNITS
+    ADDI  X10, X10, -10
+    ADDI  X12, X12, 1
+    JAL   X0,  @T25_TENS
+
+&T25_UNITS
+    # X11=hundreds, X12=tens, X10=units
+    ADDI  X14, X0,  48        # '0'
+    ADD   X11, X11, X14
+    ADD   X12, X12, X14
+    ADD   X10, X10, X14
+    SB    X11, 0(X28)         # print hundreds
+    SB    X12, 0(X28)         # print tens
+    SB    X10, 0(X28)         # print units
+    ADDI  X15, X0,  10
+    SB    X15, 0(X28)         # newline
+
+# ============================================================
+#  HALT
+# ============================================================
+
+&HALT
+    JAL   X0,  @HALT          # infinite loop
+
+# ============================================================
+#  .DATA section — string and data literals
+# ============================================================
+
+.DATA
+
+&MSG
+    .STRING "TEST OK"
+
+&NEWLINE
+    .BYTE 10
+    .BYTE 0
+
+&CONST_TABLE
+    .4BYTE 0
+    .4BYTE 1
+    .4BYTE 1
+    .4BYTE 2
+    .4BYTE 3
+    .4BYTE 5
+    .4BYTE 8
+    .4BYTE 13
+    .4BYTE 21
+    .4BYTE 34
+    .4BYTE 55
+    .4BYTE 89
+    .4BYTE 144
+
+&MAGIC
+    .4BYTE 305419896
+    .4BYTE 2882400018
+    .2BYTE 1234
+    .BYTE  255
+    .BYTE  0

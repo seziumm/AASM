@@ -1,0 +1,405 @@
+# game_of_life.aasm — Conway's Game of Life, RV32I
+#
+# Memory map (QEMU virt):
+#   0x10000000  NS16550A UART THR (write byte here directly)
+#   0x80000000  code (loaded by -device loader)
+#   0x80010000  buffer A — current generation  (80*24 = 1920 bytes)
+#   0x80012000  buffer B — next    generation  (1920 bytes)
+#
+# Grid: 80 cols x 24 rows, 1 byte per cell (0=dead, 1=alive)
+# Wrap: toroidal (edges wrap around)
+#
+# row*80 computed as (row<<6)+(row<<4) — no MUL needed
+#
+# Register convention:
+#   X20 = UART base     0x10000000
+#   X21 = buf_a         0x80010000
+#   X22 = buf_b         0x80012000
+#   X23 = W  = 80
+#   X24 = H  = 24
+#   X25 = WH = 1920
+#   X2  = stack pointer
+#   X1  = return address
+
+.CODE
+
+# ============================================================
+#  START
+# ============================================================
+
+&START
+    LUI   X2,  524320          # sp = 0x80020000
+    # stack is at 0x80020000, no adjustment needed
+
+    LUI   X20, 65536            # UART = 0x10000000
+    LUI   X21, 524304           # buf_a = 0x80010000
+    LUI   X22, 524306           # buf_b = 0x80012000
+
+    ADDI  X23, X0,  80
+    ADDI  X24, X0,  24
+    ADDI  X25, X0,  0
+    ADDI  X25, X0,  1920        # W*H
+
+    JAL   X1,  @CLEAR_BUFS
+    JAL   X1,  @SEED
+
+&MAIN_LOOP
+    JAL   X1,  @DISPLAY
+    JAL   X1,  @DELAY
+    JAL   X1,  @STEP
+    JAL   X0,  @MAIN_LOOP
+
+# ============================================================
+#  DELAY — spin loop, ~500000 iterations ≈ 5ms at 100MHz sim
+#  Tune the LUI/ADDI value to taste (bigger = slower)
+# ============================================================
+
+&DELAY
+    ADDI  X3,  X0,  80         # outer = 20
+&DELAY_OUTER
+    LUI   X4,  244
+    ADDI  X4,  X4,  576        # inner = 1_000_000
+&DELAY_INNER
+    ADDI  X4,  X4,  -1
+    BNE   X4,  X0,  @DELAY_INNER
+    ADDI  X3,  X3,  -1
+    BNE   X3,  X0,  @DELAY_OUTER
+    JALR  X0,  X1,  0
+
+# ============================================================
+#  CLEAR_BUFS — zero both buffers
+# ============================================================
+
+&CLEAR_BUFS
+    ADD   X5,  X0,  X21        # ptr_a = buf_a
+    ADD   X6,  X0,  X22        # ptr_b = buf_b
+    ADDI  X7,  X0,  0          # i = 0
+&CLR_LOOP
+    BGE   X7,  X25, @CLR_DONE
+    SB    X0,  0(X5)
+    SB    X0,  0(X6)
+    ADDI  X5,  X5,  1
+    ADDI  X6,  X6,  1
+    ADDI  X7,  X7,  1
+    JAL   X0,  @CLR_LOOP
+&CLR_DONE
+    JALR  X0,  X1,  0
+
+# ============================================================
+#  SEED — place initial patterns into buf_a
+#
+#  Glider at (1,2), (2,3), (3,1),(3,2),(3,3)
+#  Glider at (1,42),(2,43),(3,41),(3,42),(3,43)
+#  R-pentomino at (10,20)
+#  Blinker at (20,60)
+# ============================================================
+
+&SEED
+    ADDI  X6,  X0,  1          # value = 1
+
+    # glider 1
+    ADDI  X5,  X0,  82
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  163
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  241
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  242
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  243
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+
+    # glider 2
+    ADDI  X5,  X0,  122
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  203
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  281
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  282
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  283
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+
+    # R-pentomino at (10,20): idx=820,821,899,900,980
+    ADDI  X5,  X0,  820
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  821
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  899
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  900
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  980
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+
+    # blinker at (20,60): idx=1660,1661,1662
+    ADDI  X5,  X0,  1660
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  1661
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+    ADDI  X5,  X0,  1662
+    ADD   X5,  X5,  X21
+    SB    X6,  0(X5)
+
+    JALR  X0,  X1,  0
+
+# ============================================================
+#  UART_CHAR — write X10 to UART (no polling, QEMU handles it)
+# ============================================================
+
+&UART_CHAR
+    SB    X10, 0(X20)
+    JALR  X0,  X1,  0
+
+# ============================================================
+#  DISPLAY — render buf_a to terminal via ANSI codes
+#
+#  Emits ESC[2J ESC[H  then W*H characters
+# ============================================================
+
+&DISPLAY
+    ADDI  X2,  X2,  -4
+    SW    X1,  0(X2)
+
+    # ESC[2J
+    ADDI  X10, X0,  27
+    JAL   X1,  @UART_CHAR
+    ADDI  X10, X0,  91
+    JAL   X1,  @UART_CHAR
+    ADDI  X10, X0,  50
+    JAL   X1,  @UART_CHAR
+    ADDI  X10, X0,  74
+    JAL   X1,  @UART_CHAR
+
+    # ESC[H
+    ADDI  X10, X0,  27
+    JAL   X1,  @UART_CHAR
+    ADDI  X10, X0,  91
+    JAL   X1,  @UART_CHAR
+    ADDI  X10, X0,  72
+    JAL   X1,  @UART_CHAR
+
+    # walk buf_a with a direct pointer — no row*W multiply
+    ADD   X5,  X0,  X21        # ptr = buf_a
+    ADDI  X8,  X0,  0          # row = 0
+
+&DISP_ROW
+    BGE   X8,  X24, @DISP_DONE
+    ADDI  X9,  X0,  0          # col = 0
+
+&DISP_COL
+    BGE   X9,  X23, @DISP_NL
+    LBU   X10, 0(X5)
+    ADDI  X5,  X5,  1
+    BEQ   X10, X0,  @DISP_SP
+    ADDI  X10, X0,  35         # '#'
+    JAL   X0,  @DISP_EMIT
+&DISP_SP
+    ADDI  X10, X0,  32         # ' '
+&DISP_EMIT
+    JAL   X1,  @UART_CHAR
+    ADDI  X9,  X9,  1
+    JAL   X0,  @DISP_COL
+
+&DISP_NL
+    ADDI  X10, X0,  13
+    JAL   X1,  @UART_CHAR
+    ADDI  X10, X0,  10
+    JAL   X1,  @UART_CHAR
+    ADDI  X8,  X8,  1
+    JAL   X0,  @DISP_ROW
+
+&DISP_DONE
+    LW    X1,  0(X2)
+    ADDI  X2,  X2,  4
+    JALR  X0,  X1,  0
+
+# ============================================================
+#  STEP — compute one generation, buf_a -> buf_b, then swap
+#
+#  For each cell (r,c): count live neighbors with wrap,
+#  apply GoL rules, write result to buf_b.
+#  Then copy buf_b -> buf_a.
+#
+#  row*80 = (row<<6)+(row<<4)  — no MUL
+#
+#  Neighbor index arithmetic with wrap:
+#    rU = (r==0)  ? H-1 : r-1        upper row
+#    rD = (r==H-1)? 0   : r+1        lower row
+#    cL = (c==0)  ? W-1 : c-1        left col
+#    cR = (c==W-1)? 0   : c+1        right col
+#    base(row) = (row<<6)+(row<<4) + buf_a
+# ============================================================
+
+&STEP
+    ADDI  X2,  X2,  -4
+    SW    X1,  0(X2)
+
+    ADDI  X8,  X0,  0          # row = 0
+
+&STEP_ROW
+    BGE   X8,  X24, @STEP_SWAP
+
+    # precompute rU, rD  (wrapped row indices)
+    BNE   X8,  X0,  @STEP_RU_NORM
+    ADDI  X15, X24, -1          # rU = H-1
+    JAL   X0,  @STEP_RU_DONE
+&STEP_RU_NORM
+    ADDI  X15, X8,  -1          # rU = r-1
+&STEP_RU_DONE
+
+    ADDI  X7,  X24, -1
+    BNE   X8,  X7,  @STEP_RD_NORM
+    ADDI  X16, X0,  0           # rD = 0
+    JAL   X0,  @STEP_RD_DONE
+&STEP_RD_NORM
+    ADDI  X16, X8,  1           # rD = r+1
+&STEP_RD_DONE
+
+    # base addresses for rows rU, r, rD
+    # base(row) = buf_a + (row<<6) + (row<<4)
+    SLLI  X17, X15, 6
+    SLLI  X18, X15, 4
+    ADD   X17, X17, X18
+    ADD   X17, X17, X21         # X17 = buf_a base of row rU
+
+    SLLI  X18, X8,  6
+    SLLI  X19, X8,  4
+    ADD   X18, X18, X19
+    ADD   X18, X18, X21         # X18 = buf_a base of row r
+
+    SLLI  X19, X16, 6
+    SLLI  X26, X16, 4
+    ADD   X19, X19, X26
+    ADD   X19, X19, X21         # X19 = buf_a base of row rD
+
+    # buf_b base for row r (for writing result)
+    SLLI  X26, X8,  6
+    SLLI  X27, X8,  4
+    ADD   X26, X26, X27
+    ADD   X26, X26, X22         # X26 = buf_b base of row r
+
+    ADDI  X9,  X0,  0           # col = 0
+
+&STEP_COL
+    BGE   X9,  X23, @STEP_NEXT_ROW
+
+    # precompute cL, cR
+    BNE   X9,  X0,  @STEP_CL_NORM
+    ADDI  X28, X23, -1          # cL = W-1
+    JAL   X0,  @STEP_CL_DONE
+&STEP_CL_NORM
+    ADDI  X28, X9,  -1          # cL = c-1
+&STEP_CL_DONE
+
+    ADDI  X7,  X23, -1
+    BNE   X9,  X7,  @STEP_CR_NORM
+    ADDI  X29, X0,  0           # cR = 0
+    JAL   X0,  @STEP_CR_DONE
+&STEP_CR_NORM
+    ADDI  X29, X9,  1           # cR = c+1
+&STEP_CR_DONE
+
+    # count neighbors — 8 LBU loads, all inline
+    # row rU: cols cL, c, cR
+    ADD   X5,  X17, X28
+    LBU   X10, 0(X5)            # (rU, cL)
+    ADD   X5,  X17, X9
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (rU, c)
+    ADD   X5,  X17, X29
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (rU, cR)
+
+    # row r: cols cL, cR  (skip center = self)
+    ADD   X5,  X18, X28
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (r, cL)
+    ADD   X5,  X18, X29
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (r, cR)
+
+    # row rD: cols cL, c, cR
+    ADD   X5,  X19, X28
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (rD, cL)
+    ADD   X5,  X19, X9
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (rD, c)
+    ADD   X5,  X19, X29
+    LBU   X11, 0(X5)
+    ADD   X10, X10, X11         # (rD, cR)
+
+    # X10 = neighbor count (0..8)
+
+    # load current cell
+    ADD   X5,  X18, X9
+    LBU   X5,  0(X5)            # X5 = cell state
+
+    # apply GoL rules
+    ADDI  X11, X0,  0           # next = 0
+
+    BEQ   X5,  X0,  @STEP_DEAD  # branch if dead
+
+    # alive: survive if count == 2 or 3
+    ADDI  X12, X0,  2
+    BEQ   X10, X12, @STEP_BORN
+    ADDI  X12, X0,  3
+    BEQ   X10, X12, @STEP_BORN
+    JAL   X0,  @STEP_WRITE
+
+&STEP_DEAD
+    # dead: born if count == 3
+    ADDI  X12, X0,  3
+    BNE   X10, X12, @STEP_WRITE
+
+&STEP_BORN
+    ADDI  X11, X0,  1           # next = 1
+
+&STEP_WRITE
+    ADD   X5,  X26, X9          # buf_b[r][c]
+    SB    X11, 0(X5)
+
+    ADDI  X9,  X9,  1
+    JAL   X0,  @STEP_COL
+
+&STEP_NEXT_ROW
+    ADDI  X8,  X8,  1
+    JAL   X0,  @STEP_ROW
+
+# ---- swap: copy buf_b -> buf_a ----
+&STEP_SWAP
+    ADD   X5,  X0,  X21         # dst = buf_a
+    ADD   X6,  X0,  X22         # src = buf_b
+    ADDI  X7,  X0,  0           # i = 0
+&STEP_COPY
+    BGE   X7,  X25, @STEP_DONE
+    LBU   X11, 0(X6)
+    SB    X11, 0(X5)
+    ADDI  X5,  X5,  1
+    ADDI  X6,  X6,  1
+    ADDI  X7,  X7,  1
+    JAL   X0,  @STEP_COPY
+
+&STEP_DONE
+    LW    X1,  0(X2)
+    ADDI  X2,  X2,  4
+    JALR  X0,  X1,  0

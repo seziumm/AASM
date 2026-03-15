@@ -1,5 +1,5 @@
 {
-  description = "A";
+  description = "AASM";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -13,13 +13,7 @@
       devShells.${system}.default = pkgs.mkShell {
         inherit (pkgs.llvmPackages_19) stdenv;
         buildInputs = [
-          pkgs.llvmPackages_latest.lldb
-          pkgs.llvmPackages_latest.libllvm
-          pkgs.llvmPackages_latest.libcxx
-          pkgs.llvmPackages_latest.clang
-          pkgs.clang-tools
-          pkgs.clang
-          pkgs.cmake
+          pkgs.qemu
         ];
 
       };

@@ -28,11 +28,11 @@ static const struct reg greg_table[] =
 
 #define GREG_TABLE_SIZE (sizeof(greg_table) / sizeof(greg_table[0]))
 
-static inline const struct reg* greg_look_up(const char *name)
+static inline const struct reg* greg_look_up(const char *label)
 {
   for(u32 i = 0; i < GREG_TABLE_SIZE; ++i)
   {
-    if (strcmp(name, greg_table[i].name) == 0)
+    if (strcmp(label, greg_table[i].label) == 0)
     {
       return &greg_table[i];
     }

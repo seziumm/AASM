@@ -12,17 +12,13 @@ i32 main(i32 argc, char **argv)
     die(1, "Usage: ./%s <in.aasm> <out.mc>\n", argv[0]);
   }
 
-  /* ---- Lex ---- */
   char         *buffer = fread_path(argv[1]);
   struct lexer *l      = lexer_compile(buffer);
 
-  /* ---- Parse ---- */
   struct ast_node *root = parser_root(&l->table);
 
-  /* ---- Debug: dump AST ---- */
   ast_node_print(root, 0);
 
-  /* ---- Codegen ---- */
   struct codegen_ctx *cg = codegen_run(root, 0x00000000);
 
   codegen_print(cg);

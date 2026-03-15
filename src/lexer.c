@@ -100,7 +100,8 @@ static u32 lex_directive(struct lexer *l, const char *c)
 static u32 lex_label_ref(struct lexer *l, const char *c)
 {
   if (*c != '@') return 0;
-  u32 sz = count_while(c + 1, isupperdigit) + 1;
+  c++; // remove '@'
+  u32 sz = count_while(c, isupperdigit) + 1;
   lexer_push(l, TOKEN_LABEL_REF, strndup(c, sz));
   return sz;
 }
@@ -108,7 +109,8 @@ static u32 lex_label_ref(struct lexer *l, const char *c)
 static u32 lex_label(struct lexer *l, const char *c)
 {
   if (*c != '&') return 0;
-  u32 sz = count_while(c + 1, isupperdigit) + 1;
+  c++; // remove '&'
+  u32 sz = count_while(c, isupperdigit) + 1;
   lexer_push(l, TOKEN_LABEL, strndup(c, sz));
   return sz;
 }

@@ -32,6 +32,8 @@
 &HALT
     JAL  X0, @HALT
 
+.DATA
+
 &STR
 .BYTE 72
 .BYTE 101

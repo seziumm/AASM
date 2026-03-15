@@ -114,12 +114,12 @@ u0 ast_node_print(struct ast_node *n, u32 depth)
       debugf("[INSTR] %s\n", n->as_instr.inst->label ? n->as_instr.inst->label : "?");
       break;
     case AST_LABEL:
-      debugf("[LABEL] &%s addr=0x%08X\n",
+      debugf("[LABEL] %s addr=0x%08X\n",
              n->as_label.name ? n->as_label.name : "?",
              n->as_label.addr);
       break;
     case AST_LABEL_REF:
-      debugf("[LABEL_REF] @%s addr=0x%08X\n",
+      debugf("[LABEL_REF] %s addr=0x%08X\n",
              n->as_label_ref.name ? n->as_label_ref.name : "?",
              n->as_label_ref.addr);
       break;

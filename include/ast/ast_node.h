@@ -16,7 +16,7 @@ struct ast_node
 
   union
   {
-    struct { struct instr *inst;                    } as_instr;
+    struct { struct instr *inst;                   } as_instr;
     struct { u32 addr; const char *name;           } as_label;
     struct { u32 addr; const char *name;           } as_label_ref;
     struct { struct directive *dir;                } as_directive;

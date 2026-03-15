@@ -14,6 +14,7 @@ const char *token_type_to_str(enum token_type t)
     case TOKEN_REGISTER:  return "TOKEN_REG";
     case TOKEN_RPAREN:    return "TOKEN_RPAREN";
     case TOKEN_DIRECTIVE: return "TOKEN_DIRECTIVE";
+    case TOKEN_STRING:    return "TOKEN_STRING";
   }
   return "";
 }

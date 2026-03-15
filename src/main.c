@@ -14,19 +14,20 @@ i32 main(i32 argc, char **argv)
 
   char         *buffer = fread_path(argv[1]);
   struct lexer *l      = lexer_compile(buffer);
+  lexer_print(l);
 
-  struct ast_node *root = parser_root(&l->table);
-
-  ast_node_print(root, 0);
-
-  struct codegen_ctx *cg = codegen_run(root, 0x00000000);
-
-  codegen_print(cg);
-  codegen_write(cg, argv[2]);
-
-  /* ---- Cleanup ---- */
-  codegen_free(&cg);
-  ast_node_free(&root);
+  // struct ast_node *root = parser_root(&l->table);
+  //
+  // ast_node_print(root, 0);
+  //
+  // struct codegen_ctx *cg = codegen_run(root, 0x00000000);
+  //
+  // codegen_print(cg);
+  // codegen_write(cg, argv[2]);
+  //
+  // /* ---- Cleanup ---- */
+  // codegen_free(&cg);
+  // ast_node_free(&root);
   lexer_free(&l);
   a_free(buffer);
 

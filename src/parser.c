@@ -13,35 +13,37 @@
 #include <utils/aalloc.h>
 #include <utils/common.h>
 #include <stdlib.h>
-#include <lexer.h>
 #include <parser.h>
 
-static struct token *parser_expect(struct parser *p, enum token_type expected);
+/* ============================================================
+ *  Navigation helpers  (non-static — declared in parser.h so
+ *  directive parse_fn handlers can call them)
+ * ============================================================ */
 
-static inline i32 parser_at_end(struct parser *p)
+i32 parser_at_end(struct parser *p)
 {
   return (p->pos >= p->ta->size);
 }
 
-static inline struct token *parser_peek(struct parser *p)
+struct token *parser_peek(struct parser *p)
 {
   if (parser_at_end(p)) return NULL;
   return p->ta->tokens[p->pos];
 }
 
-static inline struct token *parser_advance(struct parser *p)
+struct token *parser_advance(struct parser *p)
 {
   if (parser_at_end(p)) return NULL;
   return p->ta->tokens[p->pos++];
 }
 
-static inline i32 parser_peek_type_is(struct parser *p, enum token_type tt)
+i32 parser_peek_type_is(struct parser *p, enum token_type tt)
 {
   if (parser_at_end(p)) return 0;
   return parser_peek(p)->type == tt;
 }
 
-static struct token *parser_expect(struct parser *p, enum token_type expected)
+struct token *parser_expect(struct parser *p, enum token_type expected)
 {
   if (parser_at_end(p))
     die(1, "parser: unexpected end of token stream (expected %s)",
@@ -57,6 +59,10 @@ static struct token *parser_expect(struct parser *p, enum token_type expected)
 
   return parser_advance(p);
 }
+
+/* ============================================================
+ *  Internal helpers
+ * ============================================================ */
 
 static inline struct parser *parser_create(struct token_array *ta)
 {
@@ -77,7 +83,12 @@ static inline u0 parse_comma(struct parser *p)
   parser_expect(p, TOKEN_COMMA);
 }
 
-static inline struct ast_node *parse_reg(struct parser *p)
+/* ============================================================
+ *  Operand parsers  (non-static — declared in parser.h so
+ *  directive parse_fn handlers can call them)
+ * ============================================================ */
+
+struct ast_node *parse_reg(struct parser *p)
 {
   struct token     *t = parser_expect(p, TOKEN_REGISTER);
   const struct reg *r = reg_look_up(t->value);
@@ -85,25 +96,21 @@ static inline struct ast_node *parse_reg(struct parser *p)
   return ast_node_create_reg((u8)r->index);
 }
 
-static inline struct ast_node *parse_imm(struct parser *p)
+struct ast_node *parse_imm(struct parser *p)
 {
   struct token *t = parser_expect(p, TOKEN_NUMBER);
   return ast_node_create_imm((i32)atoi(t->value));
 }
 
-static inline struct ast_node *parse_label_ref(struct parser *p)
+struct ast_node *parse_label_ref(struct parser *p)
 {
-  /* token value is "@NAME" — store full value; codegen strips '@' on lookup */
   struct token *t = parser_expect(p, TOKEN_LABEL_REF);
   return ast_node_create_label_ref(t->value);
 }
 
-/* imm ( reg ) — pushes imm then reg as children of instr */
 static inline u0 parse_mem(struct parser *p, struct ast_node *instr)
 {
-  struct token *t;
-
-  t = parser_expect(p, TOKEN_NUMBER);
+  struct token *t = parser_expect(p, TOKEN_NUMBER);
   ast_node_push(instr, ast_node_create_imm((i32)atoi(t->value)));
 
   parser_expect(p, TOKEN_LPAREN);
@@ -115,7 +122,7 @@ static inline u0 parse_mem(struct parser *p, struct ast_node *instr)
   parser_expect(p, TOKEN_RPAREN);
 }
 
-static inline struct ast_node *parse_label_ref_or_imm(struct parser *p)
+struct ast_node *parse_label_ref_or_imm(struct parser *p)
 {
   if (parser_peek_type_is(p, TOKEN_LABEL_REF))
     return parse_label_ref(p);
@@ -131,8 +138,8 @@ static inline struct ast_node *parse_label_ref_or_imm(struct parser *p)
   return NULL;
 }
 
-static u0 parse_instr_operands(struct parser   *p,
-                                struct ast_node *node,
+static u0 parse_instr_operands(struct parser      *p,
+                                struct ast_node    *node,
                                 const struct instr *ins)
 {
   switch (ins->type)
@@ -180,18 +187,17 @@ static u0 parse_instr_operands(struct parser   *p,
   }
 }
 
-static struct ast_node *parse_instr_node(struct parser *p)
+struct ast_node *parse_instr_node(struct parser *p)
 {
-  struct token       *t   = parser_advance(p); /* TOKEN_INSTR */
-  const struct instr *ins = instr_look_up(t->value);
+  struct token       *t    = parser_advance(p);
+  const struct instr *ins  = instr_look_up(t->value);
   struct ast_node    *node = ast_node_create_instr((struct instr *)ins);
   parse_instr_operands(p, node, ins);
   return node;
 }
 
-static struct ast_node *parse_label(struct parser *p)
+struct ast_node *parse_label(struct parser *p)
 {
-  /* token value is "&NAME" — store full value as label name */
   struct token    *t   = parser_advance(p);
   struct ast_node *lbl = ast_node_create_label(t->value);
 
@@ -208,67 +214,16 @@ static struct ast_node *parse_label(struct parser *p)
       continue;
     }
 
-    die(1, "parse_label_block: unexpected token %s (\"%s\")",
+    die(1, "parse_label: unexpected token %s (\"%s\")",
         token_type_to_str(tt), parser_peek(p)->value);
   }
 
   return lbl;
 }
 
-static struct ast_node *parse_directive_data(struct parser *p)
-{
-  const struct directive *d = directive_look_up(parser_peek(p)->value);
-  struct ast_node *node = ast_node_create_directive((struct directive *)d);
-  parser_advance(p);
-  ast_node_push(node, parse_imm(p));
-  return node;
-}
-
-static struct ast_node *parse_directive_section(struct parser *p)
-{
-  const struct directive *d = directive_look_up(parser_peek(p)->value);
-  struct ast_node *node = ast_node_create_directive((struct directive *)d);
-  parser_advance(p);
-
-  while (!parser_at_end(p))
-  {
-    if (parser_peek_type_is(p, TOKEN_DIRECTIVE))
-    {
-      const struct directive *d2 = directive_look_up(parser_peek(p)->value);
-
-      if (d2->type == DIRECTIVE_DATA)
-        ast_node_push(node, parse_directive_data(p));
-      else if (d2->type == DIRECTIVE_SECTION)
-        return node;
-      else
-        die(1, "parse_directive: unexpected token %s",
-            token_type_to_str(parser_peek(p)->type));
-    }
-    else if (parser_peek_type_is(p, TOKEN_INSTR))
-      ast_node_push(node, parse_instr_node(p));
-    else if (parser_peek_type_is(p, TOKEN_LABEL))
-      ast_node_push(node, parse_label(p));
-    else
-      die(1, "parse_directive: unexpected token %s",
-          token_type_to_str(parser_peek(p)->type));
-  }
-
-  return node;
-}
-
-static struct ast_node *parse_directive(struct parser *p)
-{
-  const struct directive *d = directive_look_up(parser_peek(p)->value);
-
-  switch (d->type)
-  {
-    case DIRECTIVE_SECTION: return parse_directive_section(p);
-    case DIRECTIVE_DATA:    return parse_directive_data(p);
-  }
-
-  die(1, "parse_directive: unhandled directive type %d", d->type);
-  return NULL;
-}
+/* ============================================================
+ *  Entry point  —  directive_dispatch() replaces manual switch
+ * ============================================================ */
 
 struct ast_node *parser_root(struct token_array *ta)
 {
@@ -279,19 +234,18 @@ struct ast_node *parser_root(struct token_array *ta)
 
   while (!parser_at_end(p))
   {
-    enum token_type tt = parser_peek(p)->type;
-
-    switch (tt)
+    if (parser_peek_type_is(p, TOKEN_DIRECTIVE))
     {
-      case TOKEN_DIRECTIVE:
-        ast_node_push(root, parse_directive(p));
-        break;
-
-      default:
-        die(1, "parser_root: unexpected token %s (\"%s\")",
-            token_type_to_str(tt), parser_peek(p)->value);
+      const struct directive *d = directive_look_up(parser_peek(p)->value);
+      ast_node_push(root, directive_dispatch(d, p, root));
+      continue;
     }
+
+    die(1, "parser_root: unexpected token %s (\"%s\")",
+        token_type_to_str(parser_peek(p)->type),
+        parser_peek(p)->value);
   }
 
+  parse_free(&p);
   return root;
 }

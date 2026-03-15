@@ -1,7 +1,6 @@
 #include <directive_look_up.h>
 #include <rv32/instr_look_up.h>
 #include <rv32/reg/reg_look_up.h>
-#include <rv32/reg/reg.h>
 #include <lexer.h>
 #include <token/token_array.h>
 #include <token/token_type.h>
@@ -10,21 +9,14 @@
 #include <string.h>
 #include <ctype.h>
 
-static inline i32 isupperdigit(i32 ch)
-{
-  return isupper(ch) || isdigit(ch);
-}
-
-static inline i32 isnotnewline(i32 ch)
-{
-  return ch != '\n';
-}
+static inline i32 isupperdigit(i32 ch) { return isupper(ch) || isdigit(ch); }
+static inline i32 isnotnewline(i32 ch) { return ch != '\n'; }
+static inline i32 isnotquote  (i32 ch) { return ch != '"';  }
 
 static inline u32 count_while(const char *c, i32 (*pred)(i32))
 {
   const char *base = c;
-  while (*c != '\0' && pred((unsigned char)*c))
-    c++;
+  while (*c != '\0' && pred((unsigned char)*c)) c++;
   return (u32)(c - base);
 }
 
@@ -43,90 +35,87 @@ static struct lexer *lexer_create(u0)
   return l;
 }
 
-static inline u0 lexer_push_token(struct lexer *l, struct token *td)
-{
-  token_array_push(&l->table, td);
-}
-
 static inline u0 lexer_push(struct lexer *l, enum token_type t, char *value)
 {
-  lexer_push_token(l, token_create(t, value));
+  token_array_push(&l->table, token_create(t, value));
 }
 
-static u32 lex_whitespace(struct lexer *l, const char *c)
+static inline u32 lex_whitespace(struct lexer *l, const char *c)
 {
-  (void)l;
-  return (*c == ' ' || *c == '\t' || *c == '\r' || *c == '\n');
+  (u0)l; (u0)c;
+  return 1;
 }
 
-static u32 lex_comment(struct lexer *l, const char *c)
+static inline u32 lex_comment(struct lexer *l, const char *c)
 {
-  (void)l;
-  if (*c != '#') return 0;
+  (u0)l;
   return count_while(c, isnotnewline);
 }
 
-static u32 lex_single(struct lexer *l, const char *c)
+static inline u32 lex_comma(struct lexer *l, const char *c)
 {
-  switch (*c)
-  {
-    case ',': lexer_push(l, TOKEN_COMMA,  strdup(",")); return 1;
-    case '(': lexer_push(l, TOKEN_LPAREN, strdup("(")); return 1;
-    case ')': lexer_push(l, TOKEN_RPAREN, strdup(")")); return 1;
-  }
+  (u0)c;
+  lexer_push(l, TOKEN_COMMA, strdup(","));
+  return 1;
+}
 
-  return 0;
+static inline u32 lex_lparen(struct lexer *l, const char *c)
+{
+  (u0)c;
+  lexer_push(l, TOKEN_LPAREN, strdup("("));
+  return 1;
+}
+
+static inline u32 lex_rparen(struct lexer *l, const char *c)
+{
+  (u0)c;
+  lexer_push(l, TOKEN_RPAREN, strdup(")"));
+  return 1;
 }
 
 static u32 lex_directive(struct lexer *l, const char *c)
 {
-  if (*c != '.') return 0;
 
-  u32 sz = count_while(c + 1, isupper) + 1;
+  u32   sz   = count_while(c + 1, isupperdigit) + 1;
   char *word = strndup(c, sz);
 
-  if(directive_look_up(word))
+  if (!directive_look_up(word))
   {
-    lexer_push(l, TOKEN_DIRECTIVE, strndup(c, sz));
-    return sz;
-
+    die(1, "LEXER: unknown directive '%s'", word);
   }
 
-  die(1, "LEXER: UNKNOWN DIRECTIVE '%s'", word);
-
-  return 0; // we shut up the warning
+  lexer_push(l, TOKEN_DIRECTIVE, word);
+  return sz;
 }
 
-static u32 lex_label_ref(struct lexer *l, const char *c)
+static inline u32 lex_label_ref(struct lexer *l, const char *c)
 {
-  if (*c != '@') return 0;
-  c++; // remove '@'
-  u32 sz = count_while(c, isupperdigit) + 1;
+  u32 sz = count_while(c + 1, isupperdigit) + 1;
   lexer_push(l, TOKEN_LABEL_REF, strndup(c, sz));
   return sz;
 }
 
-static u32 lex_label(struct lexer *l, const char *c)
+static inline u32 lex_label(struct lexer *l, const char *c)
 {
-  if (*c != '&') return 0;
-  c++; // remove '&'
-  u32 sz = count_while(c, isupperdigit) + 1;
+  u32 sz = count_while(c + 1, isupperdigit) + 1;
   lexer_push(l, TOKEN_LABEL, strndup(c, sz));
   return sz;
 }
 
-static u32 lex_number(struct lexer *l, const char *c)
+static inline u32 lex_number(struct lexer *l, const char *c)
 {
-  if (!isdigit((unsigned char)*c) && *c != '-') return 0;
   u32 hassign = (*c == '-');
-  u32 sz      = count_while(c + hassign, isdigit) + hassign;
+  u32 digits  = count_while(c + hassign, isdigit);
+
+  if (unlikely(hassign && digits == 0)) die(1, "LEXER: unkown number");
+
+  u32 sz = digits + hassign;
   lexer_push(l, TOKEN_NUMBER, strndup(c, sz));
   return sz;
 }
 
 static u32 lex_word(struct lexer *l, const char *c)
 {
-  if (!isupper((unsigned char)*c)) return 0;
 
   u32   sz   = count_while(c, isupperdigit);
   char *word = strndup(c, sz);
@@ -134,32 +123,32 @@ static u32 lex_word(struct lexer *l, const char *c)
   if (reg_look_up(word))
   {
     lexer_push(l, TOKEN_REGISTER, word);
+    return sz;
   }
-  else if (instr_look_up(word))
+
+  if (instr_look_up(word))
   {
     lexer_push(l, TOKEN_INSTR, word);
-  }
-  else
-  {
-    die(1, "LEXER: UNKNOWN WORD '%s'", word);
+    return sz;
   }
 
-  return sz;
+  die(1, "LEXER: unknown word '%s'", word);
+  return 0;
 }
 
-typedef u32 (*lex_fn)(struct lexer *, const char *);
-static const lex_fn lex_fns[] = 
+static u32 lex_string(struct lexer *l, const char *c)
 {
-  lex_whitespace,
-  lex_comment,
-  lex_single,
-  lex_directive,
-  lex_label_ref,
-  lex_label,
-  lex_number,
-  lex_word,
-  NULL,
-};
+  c++;
+  u32 sz = count_while(c, isnotquote);
+
+  if (unlikely(*(c + sz) != '"'))
+  {
+    die(1, "LEXER: unterminated string literal");
+  }
+
+  lexer_push(l, TOKEN_STRING, strndup(c, sz));
+  return sz + 2;
+}
 
 struct lexer *lexer_compile(const char *c)
 {
@@ -167,23 +156,37 @@ struct lexer *lexer_compile(const char *c)
 
   while (*c != '\0')
   {
-    u32 ok = 0;
-
-    for (u32 i = 0; lex_fns[i]; i++)
+    switch (*c)
     {
-      u32 n = lex_fns[i](l, c);
+      case ' ': case '\t': case '\r': case '\n':
+        c += lex_whitespace(l, c); break;
+      case '#':
+        c += lex_comment(l, c); break;
 
-      if (n > 0) 
-      { 
-        c += n; 
-        ok = 1; 
-        break; 
-      }
-    }
+      case ',': c += lex_comma  (l, c); break;
+      case '(': c += lex_lparen (l, c); break;
+      case ')': c += lex_rparen (l, c); break;
 
-    if (unlikely(!ok))
-    {
-      die(1, "LEXER: UNEXPECTED CHARACTER '%c'", *c, (unsigned char)*c);
+      case '.': c += lex_directive (l, c); break;
+      case '@': c += lex_label_ref (l, c); break;
+      case '&': c += lex_label     (l, c); break;
+      case '"': c += lex_string    (l, c); break;
+
+      case '-':
+      case '0': case '1': case '2': case '3': case '4':
+      case '5': case '6': case '7': case '8': case '9':
+        c += lex_number(l, c); break;
+
+      case 'A': case 'B': case 'C': case 'D': case 'E':
+      case 'F': case 'G': case 'H': case 'I': case 'J':
+      case 'K': case 'L': case 'M': case 'N': case 'O':
+      case 'P': case 'Q': case 'R': case 'S': case 'T':
+      case 'U': case 'V': case 'W': case 'X': case 'Y':
+      case 'Z':
+        c += lex_word(l, c); break;
+
+      default:
+        die(1, "LEXER: unexpected character '%c'", *c);
     }
   }
 

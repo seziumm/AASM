@@ -14,6 +14,7 @@ enum token_type
   TOKEN_REGISTER,   /* 'X1', 'SP'...  */
   TOKEN_RPAREN,     /* ')'            */
   TOKEN_DIRECTIVE,  /* '.ALIGN'       */
+  TOKEN_STRING,
 };
 
 const char *token_type_to_str(enum token_type t);

@@ -1,0 +1,6 @@
+.text
+  add a0, a0, 0 # nop
+
+.data
+  .1byte 5
+  .4byte 2109290132304923

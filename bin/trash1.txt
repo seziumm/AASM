@@ -1,0 +1,4 @@
+another test file
+contains different content
+but still searching
+for a specific char
